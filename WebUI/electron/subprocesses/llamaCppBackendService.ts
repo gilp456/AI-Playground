@@ -10,6 +10,11 @@ import { vulkanDeviceSelectorEnv } from './deviceDetection.ts'
 import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { binary, extract } from './tools.ts'
+import {
+  buildLlamaCppSpeculativeArgs,
+  type BackendRuntimeOptions,
+  type SpeculativeDecodingOptions,
+} from './speculativeDecoding.ts'
 
 const execAsync = promisify(exec)
 
@@ -57,6 +62,7 @@ export class LlamaCppBackendService implements ApiService {
   private currentLlmModel: string | null = null
   private currentContextSize: number | null = null
   private currentEmbeddingModel: string | null = null
+  private currentSpeculativeOptions: SpeculativeDecodingOptions | null = null
 
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
@@ -107,6 +113,7 @@ export class LlamaCppBackendService implements ApiService {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    runtimeOptions?: BackendRuntimeOptions,
   ): Promise<void> {
     this.appLogger.info(
       `Ensuring LlamaCPP backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Context: ${contextSize ?? 'default'}`,
@@ -118,11 +125,13 @@ export class LlamaCppBackendService implements ApiService {
       const needsLlmRestart =
         this.currentLlmModel !== llmModelName ||
         (contextSize && contextSize !== this.currentContextSize) ||
+        JSON.stringify(this.currentSpeculativeOptions) !==
+          JSON.stringify(runtimeOptions?.speculative ?? null) ||
         !this.llamaLlmProcess?.isReady
 
       if (needsLlmRestart) {
         await this.stopLlamaLlmServer()
-        await this.startLlamaLlmServer(llmModelName, contextSize)
+        await this.startLlamaLlmServer(llmModelName, contextSize, runtimeOptions?.speculative)
         this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
       } else {
         this.appLogger.info(`LLM server already running with model: ${llmModelName}`, this.name)
@@ -552,6 +561,7 @@ export class LlamaCppBackendService implements ApiService {
   private async startLlamaLlmServer(
     modelRepoId: string,
     contextSize?: number,
+    speculative?: SpeculativeDecodingOptions,
   ): Promise<LlamaServerProcess> {
     try {
       const modelPath = this.resolveModelPath(modelRepoId)
@@ -574,6 +584,9 @@ export class LlamaCppBackendService implements ApiService {
         '--ctx-size',
         ctxSize.toString(),
         ...this.llamaCppParametersString.split(/\s+/).filter(Boolean),
+        ...buildLlamaCppSpeculativeArgs(speculative, (draftModelRepoId) =>
+          this.resolveModelPath(draftModelRepoId),
+        ),
       ]
 
       const modelFolder = path.dirname(modelPath)
@@ -651,6 +664,7 @@ export class LlamaCppBackendService implements ApiService {
       this.llamaLlmProcess = llamaProcess
       this.currentLlmModel = modelRepoId
       this.currentContextSize = ctxSize
+      this.currentSpeculativeOptions = speculative ?? null
 
       this.appLogger.info(`LLM server ready for model: ${modelRepoId}`, this.name)
       return llamaProcess
@@ -787,6 +801,7 @@ export class LlamaCppBackendService implements ApiService {
       this.llamaLlmProcess = null
       this.currentLlmModel = null
       this.currentContextSize = null
+      this.currentSpeculativeOptions = null
     }
   }
 

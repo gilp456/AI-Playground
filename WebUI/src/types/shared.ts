@@ -2,9 +2,15 @@ import z from 'zod'
 
 export const llmBackendTypes = ['openVINO', 'llamaCPP'] as const
 
+export const SpeculativeDecodingSchema = z.object({
+  assistantModel: z.string(),
+  numAssistantTokens: z.number().positive().optional(),
+})
+
 export const ModelSchema = z.object({
   name: z.string(),
   mmproj: z.string().optional(),
+  speculative: SpeculativeDecodingSchema.optional(),
   downloaded: z.boolean().optional(),
   type: z.enum(['embedding', 'undefined', ...llmBackendTypes]),
   default: z.boolean().optional(), // No longer required - priority is determined by position in models.json

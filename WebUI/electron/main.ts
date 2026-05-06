@@ -78,6 +78,11 @@ import { loadDemoProfile, type DemoProfile } from './demoProfile.ts'
 import type { ModelPaths } from '@/assets/js/store/models.ts'
 import type { IndexedDocument, EmbedInquiry } from '@/assets/js/store/textInference.ts'
 import { BackendServiceName } from '@/assets/js/store/backendServices.ts'
+import type { BackendRuntimeOptions } from './subprocesses/speculativeDecoding.ts'
+import {
+  createLocalProviderServer,
+  type LocalProviderServer,
+} from './localProvider/localProviderServer.ts'
 import {
   detectGpuHardwareDevices,
   type GpuHardwareDevice,
@@ -192,6 +197,13 @@ const appSize = {
 }
 const ThemeSchema = z.enum(['dark', 'lnl', 'bmg', 'light'])
 const ProductModeSchema = z.enum(['studio', 'essentials', 'nvidia'])
+const LocalProviderApiSettingsSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    host: z.literal('127.0.0.1').default('127.0.0.1'),
+    port: z.number().int().min(1).max(65535).default(11435),
+  })
+  .default({ enabled: false, host: '127.0.0.1', port: 11435 })
 const LocalSettingsSchema = z.object({
   debug: z.boolean().default(false),
   deviceArchOverride: z.enum(['bmg', 'acm', 'arl_h', 'wcl', 'lnl', 'mtl']).nullable().default(null),
@@ -205,6 +217,7 @@ const LocalSettingsSchema = z.object({
   languageOverride: z.string().nullable().default(null),
   remoteRepository: z.string().default('intel/ai-playground'),
   huggingfaceEndpoint: z.string().default('https://huggingface.co'),
+  localProviderApi: LocalProviderApiSettingsSchema,
 })
 export type LocalSettings = z.infer<typeof LocalSettingsSchema>
 export type ProductMode = z.infer<typeof ProductModeSchema>
@@ -310,6 +323,7 @@ function applyPresetFilter(
 
 let settings = LocalSettingsSchema.parse({})
 let demoProfile: DemoProfile | null = null
+let localProviderServer: LocalProviderServer | null = null
 
 /** Packaged app: single JSON next to resources. Dev: never write here (Vite watches the repo). */
 function getPackagedSettingsPath(): string {
@@ -692,8 +706,9 @@ function initEventHandle() {
     return LocalSettingsSchema.parse(settings)
   })
 
-  ipcMain.handle('updateLocalSettings', (_event, updates: Partial<LocalSettings>) => {
-    Object.assign(settings, updates)
+  ipcMain.handle('updateLocalSettings', async (_event, updates: Partial<LocalSettings>) => {
+    const previousSettings = settings
+    settings = LocalSettingsSchema.parse({ ...settings, ...updates })
     const shouldReloadDemoProfile =
       settings.isDemoModeEnabled && ('productMode' in updates || 'isDemoModeEnabled' in updates)
     if (shouldReloadDemoProfile) {
@@ -703,6 +718,21 @@ function initEventHandle() {
         demoProfile = loadDemoProfile(modeDemoDir, baseDemoDir, appLogger)
       } catch (e) {
         appLogger.error(`Failed to reload demo profile after settings change: ${e}`, 'demo-profile')
+      }
+    }
+    if ('localProviderApi' in updates) {
+      try {
+        await reconcileLocalProviderApi()
+      } catch (error) {
+        settings = previousSettings
+        await reconcileLocalProviderApi().catch((reconcileError) => {
+          appLogger.error(
+            `Failed to restore local provider API after settings error: ${reconcileError}`,
+            'local-provider',
+          )
+        })
+        appLogger.error(`Failed to reconcile local provider API: ${error}`, 'local-provider')
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
       }
     }
     persistLocalSettingsToDisk()
@@ -920,6 +950,59 @@ function initEventHandle() {
   const pathsManager = new PathsManager(
     path.join(externalRes, app.isPackaged ? 'model_config.json' : 'model_config.dev.json'),
   )
+
+  async function resolveLocalProviderModels() {
+    const predefinedModels = await resolveModels(settings)
+    const downloadedModels = [
+      ...pathsManager.scanGGUFLLMModels().map((name) => ({ name, type: 'llamaCPP' })),
+      ...pathsManager.scanOpenVINOModels().map((name) => ({ name, type: 'openVINO' })),
+    ]
+    const downloadedModelNames = new Set(downloadedModels.map((model) => model.name))
+    const predefinedModelNames = new Set(predefinedModels.map((model) => model.name))
+
+    return [
+      ...predefinedModels.map((model) => ({
+        ...model,
+        downloaded: downloadedModelNames.has(model.name),
+      })),
+      ...downloadedModels
+        .filter((model) => !predefinedModelNames.has(model.name))
+        .map((model) => ({ ...model, downloaded: true })),
+    ]
+  }
+
+  async function reconcileLocalProviderApi() {
+    const localProviderApi = settings.localProviderApi
+    if (!localProviderApi.enabled) {
+      if (localProviderServer) {
+        await localProviderServer.close()
+        localProviderServer = null
+        appLogger.info('Local provider API stopped', 'local-provider')
+      }
+      return
+    }
+
+    const requestedUrl = `http://${localProviderApi.host}:${localProviderApi.port}/v1`
+    if (localProviderServer?.url === requestedUrl) return
+
+    if (localProviderServer) {
+      await localProviderServer.close()
+      localProviderServer = null
+      appLogger.info('Local provider API stopped for settings change', 'local-provider')
+    }
+
+    localProviderServer = await createLocalProviderServer({
+      host: localProviderApi.host,
+      port: localProviderApi.port,
+      getModels: resolveLocalProviderModels,
+      getService: (serviceName) => serviceRegistry?.getService(serviceName),
+    })
+    appLogger.info(`Local provider API listening at ${localProviderServer.url}`, 'local-provider')
+  }
+
+  void reconcileLocalProviderApi().catch((error) => {
+    appLogger.error(`Failed to start local provider API: ${error}`, 'local-provider')
+  })
 
   ipcMain.handle('getInitSetting', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender)
@@ -1160,6 +1243,7 @@ function initEventHandle() {
       llmModelName: string,
       embeddingModelName?: string,
       contextSize?: number,
+      runtimeOptions?: BackendRuntimeOptions,
     ) => {
       appLogger.info(
         `Ensuring backend readiness for service: ${serviceName}, LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}, Context Size: ${contextSize ?? 'undefined'}`,
@@ -1179,7 +1263,12 @@ function initEventHandle() {
       }
 
       try {
-        await service.ensureBackendReadiness(llmModelName, embeddingModelName, contextSize)
+        await service.ensureBackendReadiness(
+          llmModelName,
+          embeddingModelName,
+          contextSize,
+          runtimeOptions,
+        )
         appLogger.info(
           `Backend ${serviceName} ready for LLM: ${llmModelName}, Embedding: ${embeddingModelName || 'none'}`,
           'electron-backend',

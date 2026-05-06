@@ -86,10 +86,22 @@ export const useOpenAiCompatibleChat = defineStore(
         fetch: (url, init) => {
           const requestUrl = new URL(url as string)
           const currentBaseUrl = textInference.currentBackendUrl
+          const activeSpeculative = textInference.activeSpeculative
           if (currentBaseUrl) {
             const latestBase = new URL(currentBaseUrl)
             requestUrl.hostname = latestBase.hostname
             requestUrl.port = latestBase.port
+          }
+          if (
+            textInference.backend === 'openVINO' &&
+            activeSpeculative?.numAssistantTokens &&
+            init?.body
+          ) {
+            const body = JSON.parse(init.body.toString())
+            init.body = JSON.stringify({
+              ...body,
+              num_assistant_tokens: activeSpeculative.numAssistantTokens,
+            })
           }
           return globalThis.fetch(requestUrl.toString(), init)
         },

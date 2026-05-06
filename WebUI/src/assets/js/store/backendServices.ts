@@ -369,6 +369,7 @@ export const useBackendServices = defineStore(
       llmModelName: string,
       embeddingModelName?: string,
       contextSize?: number,
+      runtimeOptions?: BackendRuntimeOptions,
     ): Promise<void> {
       try {
         const result = await window.electronAPI.ensureBackendReadiness(
@@ -376,6 +377,7 @@ export const useBackendServices = defineStore(
           llmModelName,
           embeddingModelName,
           contextSize,
+          runtimeOptions,
         )
         if (!result.success) {
           throw new Error(result.error || 'Failed to ensure backend readiness')

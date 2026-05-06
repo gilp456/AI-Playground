@@ -146,6 +146,29 @@
           </div>
           <Checkbox id="keep-models-loaded" v-model="developerSettings.keepModelsLoaded" />
         </div>
+        <div class="flex justify-between pr-4 items-center gap-4 mb-4">
+          <Label class="whitespace-nowrap">Local API Server</Label>
+          <Checkbox
+            id="local-provider-api"
+            :modelValue="localProviderApiEnabled"
+            @update:modelValue="toggleLocalProviderApi"
+          />
+        </div>
+        <div class="grid grid-cols-[120px_1fr] pr-4 items-center gap-4 mb-4">
+          <Label class="whitespace-nowrap">API Port</Label>
+          <div class="flex items-center gap-2">
+            <Input
+              v-model="localProviderApiPort"
+              type="number"
+              min="1"
+              max="65535"
+              class="h-[30px] leading-[30px] rounded-md bg-card border-border text-foreground px-[3px]"
+            />
+            <Button variant="outline" size="sm" @click="applyLocalProviderApiSettings">
+              Apply
+            </Button>
+          </div>
+        </div>
       </div>
       <div class="flex justify-between items-center">
         <p>
@@ -225,10 +248,21 @@ const speechToText = useSpeechToText()
 const developerSettings = useDeveloperSettings()
 const dialogStore = useDialogStore()
 const backendStarting = ref(false)
+const localProviderApiEnabled = ref(false)
+const localProviderApiPort = ref(11435)
 
 const mirrorUrl = ref(models.hfEndpoint)
 const verificationMessage = ref('')
 const verificationSuccess = ref(false)
+
+function loadLocalProviderApiSettings() {
+  return window.electronAPI.getLocalSettings().then((settings) => {
+    localProviderApiEnabled.value = settings.localProviderApi.enabled
+    localProviderApiPort.value = settings.localProviderApi.port
+  })
+}
+
+loadLocalProviderApiSettings()
 
 function isValidUrl(url: string): boolean {
   try {
@@ -337,6 +371,37 @@ async function executeRestartBackends() {
       error instanceof Error ? error.message : 'Failed to apply HuggingFace settings'
     toast.error(errorMessage)
   }
+}
+
+async function toggleLocalProviderApi(value: boolean | 'indeterminate') {
+  localProviderApiEnabled.value = value === true
+  await applyLocalProviderApiSettings()
+}
+
+async function applyLocalProviderApiSettings() {
+  const port = Number(localProviderApiPort.value)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    toast.error('Local API port must be between 1 and 65535')
+    return
+  }
+
+  const result = await window.electronAPI.updateLocalSettings({
+    localProviderApi: {
+      enabled: localProviderApiEnabled.value,
+      host: '127.0.0.1',
+      port,
+    },
+  })
+  if (!result.success) {
+    toast.error(result.error ?? 'Failed to update local API server')
+    await loadLocalProviderApiSettings()
+    return
+  }
+  toast.success(
+    localProviderApiEnabled.value
+      ? `Local API server enabled on 127.0.0.1:${port}`
+      : 'Local API server disabled',
+  )
 }
 
 const displayComponents = computed(() => {

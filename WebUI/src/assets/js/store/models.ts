@@ -18,6 +18,10 @@ export type ModelType = 'embedding' | 'undefined' | LlmBackend
 export type Model = {
   name: string
   mmproj?: string
+  speculative?: {
+    assistantModel: string
+    numAssistantTokens?: number
+  }
   downloaded: boolean
   type: ModelType
   backend?: LlmBackend
@@ -130,6 +134,7 @@ export const useModels = defineStore(
           const model: Model = {
             name: m.name,
             mmproj,
+            speculative: combinedModel.speculative,
             downloaded: downloadedModelNames.has(m.name),
             type: m.type,
             backend: 'backend' in m ? (m.backend as LlmBackend | undefined) : combinedModel.backend,
@@ -153,6 +158,7 @@ export const useModels = defineStore(
       if (!model.isPredefined) {
         customModelMetadata.value[model.name] = {
           mmproj: model.mmproj,
+          speculative: model.speculative,
           backend: model.backend,
           supportsToolCalling: model.supportsToolCalling,
           supportsVision: model.supportsVision,

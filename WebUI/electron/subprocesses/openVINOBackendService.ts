@@ -9,6 +9,11 @@ import { exec } from 'child_process'
 import { LocalSettings } from '../main.ts'
 import getPort, { portNumbers } from 'get-port'
 import { installBackend } from './uvBasedBackends/uv.ts'
+import {
+  getOpenVinoSpeculativeConfigPath,
+  type BackendRuntimeOptions,
+  type SpeculativeDecodingOptions,
+} from './speculativeDecoding.ts'
 
 const execAsync = promisify(exec)
 
@@ -58,6 +63,7 @@ export class OpenVINOBackendService implements ApiService {
   private currentContextSize: number | null = null
   private currentEmbeddingModel: string | null = null
   private currentTranscriptionModel: string | null = null
+  private currentSpeculativeOptions: SpeculativeDecodingOptions | null = null
 
   // Store last startup error details for persistence
   private lastStartupErrorDetails: ErrorDetails | null = null
@@ -108,6 +114,7 @@ export class OpenVINOBackendService implements ApiService {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    runtimeOptions?: BackendRuntimeOptions,
   ): Promise<void> {
     this.appLogger.info(
       `Ensuring OpenVINO backend readiness for LLM: ${llmModelName}, Embedding: ${embeddingModelName ?? 'none'}, Context: ${contextSize ?? 'default'}`,
@@ -119,11 +126,13 @@ export class OpenVINOBackendService implements ApiService {
       const needsLlmRestart =
         this.currentModel !== llmModelName ||
         (contextSize && contextSize !== this.currentContextSize) ||
+        JSON.stringify(this.currentSpeculativeOptions) !==
+          JSON.stringify(runtimeOptions?.speculative ?? null) ||
         !this.ovmsLlmProcess?.isReady
 
       if (needsLlmRestart) {
         await this.stopOvmsLlmServer()
-        await this.startOvmsLlmServer(llmModelName, contextSize)
+        await this.startOvmsLlmServer(llmModelName, contextSize, runtimeOptions?.speculative)
         this.appLogger.info(`LLM server ready with model: ${llmModelName}`, this.name)
       } else {
         this.appLogger.info(`LLM server already running with model: ${llmModelName}`, this.name)
@@ -826,6 +835,7 @@ export class OpenVINOBackendService implements ApiService {
   private async startOvmsLlmServer(
     modelRepoId: string,
     contextSize?: number,
+    speculative?: SpeculativeDecodingOptions,
   ): Promise<OvmsServerProcess> {
     try {
       const selectedDevice = this.devices.find((d) => d.selected)?.id || 'AUTO'
@@ -836,6 +846,7 @@ export class OpenVINOBackendService implements ApiService {
         this.name,
       )
 
+      const modelRepositoryPath = path.resolve(path.join(this.baseDir, 'models', 'LLM', 'openvino'))
       const args = [
         '--rest_bind_address',
         '127.0.0.1',
@@ -843,25 +854,36 @@ export class OpenVINOBackendService implements ApiService {
         this.port.toString(),
         '--rest_workers',
         '4',
-        '--source_model',
-        modelRepoId.split('/').join('---'),
-        '--model_repository_path',
-        path.resolve(path.join(this.baseDir, 'models', 'LLM', 'openvino')),
-        '--target_device',
-        selectedDevice,
-        '--cache_size',
-        '2',
-        '--task',
-        'text_generation',
-        '--tool_parser',
-        'hermes3',
-        '--reasoning_parser',
-        'qwen3',
-        '--cache_dir',
-        'cache',
       ]
 
-      if (selectedDevice.startsWith('NPU')) {
+      if (speculative) {
+        const configPath = getOpenVinoSpeculativeConfigPath(modelRepoId, modelRepositoryPath)
+        if (!filesystem.existsSync(configPath)) {
+          throw new Error(`Speculative OpenVINO config not found: ${configPath}`)
+        }
+        args.push('--config_path', configPath)
+      } else {
+        args.push(
+          '--source_model',
+          modelRepoId.split('/').join('---'),
+          '--model_repository_path',
+          modelRepositoryPath,
+          '--target_device',
+          selectedDevice,
+          '--cache_size',
+          '2',
+          '--task',
+          'text_generation',
+          '--tool_parser',
+          'hermes3',
+          '--reasoning_parser',
+          'qwen3',
+          '--cache_dir',
+          'cache',
+        )
+      }
+
+      if (!speculative && selectedDevice.startsWith('NPU')) {
         args.push('--max_prompt_len', maxPromptLen.toString())
       }
 
@@ -922,6 +944,7 @@ export class OpenVINOBackendService implements ApiService {
       this.ovmsLlmProcess = ovmsProcess
       this.currentModel = modelRepoId
       this.currentContextSize = contextSize ?? null
+      this.currentSpeculativeOptions = speculative ?? null
 
       this.appLogger.info(`OVMS LLM server ready for model: ${modelRepoId}`, this.name)
       return ovmsProcess
@@ -964,6 +987,7 @@ export class OpenVINOBackendService implements ApiService {
       this.ovmsLlmProcess = null
       this.currentModel = null
       this.currentContextSize = null
+      this.currentSpeculativeOptions = null
     }
   }
 

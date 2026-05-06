@@ -13,6 +13,7 @@ import { promisify } from 'util'
 import { Arch, getArchPriority, getDeviceArch } from './deviceArch.ts'
 import { z } from 'zod'
 import { LocalSettings } from '../main.ts'
+import type { BackendRuntimeOptions } from './speculativeDecoding.ts'
 
 const exec = promisify(childProcess.exec)
 
@@ -465,6 +466,7 @@ export interface ApiService {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    runtimeOptions?: BackendRuntimeOptions,
   ): Promise<void>
 }
 

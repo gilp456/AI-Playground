@@ -20,6 +20,10 @@ export const backendToService = {
 export type LlmModel = {
   name: string
   mmproj?: string
+  speculative?: {
+    assistantModel: string
+    numAssistantTokens?: number
+  }
   type: LlmBackend
   active: boolean
   downloaded: boolean
@@ -148,6 +152,7 @@ export const useTextInference = defineStore(
         return {
           name: m.name,
           mmproj: m.mmproj,
+          speculative: m.speculative,
           type: m.type as LlmBackend,
           downloaded: m.downloaded ?? false,
           active: m.name === selectedModelForType || (!hasValidSelection && isFirstForType),
@@ -333,6 +338,11 @@ export const useTextInference = defineStore(
       return currentModel?.supportsVision === true
     })
 
+    const activeSpeculative = computed(() => {
+      return llmModels.value.filter((m) => m.type === backend.value).find((m) => m.active)
+        ?.speculative
+    })
+
     // Check if the active preset requires tool calling
     const presetRequiresToolCalling = computed(() => {
       return activePreset.value?.requiresToolCalling === true
@@ -389,6 +399,13 @@ export const useTextInference = defineStore(
       if (modelMetaData?.mmproj) {
         checkList.push({
           repo_id: modelMetaData.mmproj,
+          type: backendToAipgModelType[backend.value],
+          backend: backendName,
+        })
+      }
+      if (type === 'llm' && modelMetaData?.speculative?.assistantModel) {
+        checkList.push({
+          repo_id: modelMetaData.speculative.assistantModel,
           type: backendToAipgModelType[backend.value],
           backend: backendName,
         })
@@ -829,6 +846,10 @@ export const useTextInference = defineStore(
           llmModelName,
           embeddingModelToSend,
           contextSize.value,
+          {
+            speculative: llmModels.value.find((m) => m.type === backend.value && m.active)
+              ?.speculative,
+          },
         )
       }
     }
@@ -1302,6 +1323,7 @@ export const useTextInference = defineStore(
 
       // Vision support
       modelSupportsVision,
+      activeSpeculative,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),

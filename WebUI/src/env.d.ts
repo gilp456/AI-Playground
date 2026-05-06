@@ -22,6 +22,21 @@ type ServiceSettings = {
   llamaCppParameters?: string
 }
 
+type SpeculativeDecodingOptions = {
+  assistantModel: string
+  numAssistantTokens?: number
+}
+
+type BackendRuntimeOptions = {
+  speculative?: SpeculativeDecodingOptions
+}
+
+type LocalProviderApiSettings = {
+  enabled: boolean
+  host: '127.0.0.1'
+  port: number
+}
+
 type SamplePrompt = {
   title: string
   description: string
@@ -59,6 +74,7 @@ type LocalSettings = {
   languageOverride: string | null
   remoteRepository: string
   huggingfaceEndpoint: string
+  localProviderApi: LocalProviderApiSettings
 }
 
 type GpuHardwareDevice = {
@@ -174,7 +190,9 @@ type electronAPI = {
   }>
   getLocaleSettings(): Promise<LocaleSettings>
   getThemeSettings(): Promise<ThemeSettings>
-  updateLocalSettings(updates: Partial<LocalSettings>): Promise<{ success: boolean }>
+  updateLocalSettings(
+    updates: Partial<LocalSettings>,
+  ): Promise<{ success: boolean; error?: string }>
   getLocalSettings(): Promise<LocalSettings>
   detectHardwareForModeRecommendation(): Promise<HardwareRecommendationResult>
   setWinSize(width: number, height: number): Promise<void>
@@ -246,6 +264,7 @@ type electronAPI = {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    runtimeOptions?: BackendRuntimeOptions,
   ): Promise<{ success: boolean; error?: string }>
   ensureComfyUIBackendRunning(): Promise<{
     success: boolean

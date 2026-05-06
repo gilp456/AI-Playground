@@ -114,6 +114,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     llmModelName: string,
     embeddingModelName?: string,
     contextSize?: number,
+    runtimeOptions?: BackendRuntimeOptions,
   ) =>
     ipcRenderer.invoke(
       'ensureBackendReadiness',
@@ -121,6 +122,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       llmModelName,
       embeddingModelName,
       contextSize,
+      runtimeOptions,
     ),
   ensureComfyUIBackendRunning: () => ipcRenderer.invoke('ensureComfyUIBackendRunning'),
   startTranscriptionServer: (modelName: string) =>
