@@ -24,6 +24,10 @@ Analyze images with Qwen3 VL Model	Vibe Coding with GPT-OSS 20B Reasoning	Docume
 ## README.md
 - English (readme.md)
 
+## Local Development Branch Notes
+
+This local development branch adds experimental Gemma MTP and local-provider changes for evaluation before any upstream proposal. See [CHANGELOG.md](CHANGELOG.md) and [docs/gemma-mtp-local-provider.md](docs/gemma-mtp-local-provider.md) for details about the implementation, model-size findings, test workflow, and AI assistance disclosure.
+
 ## Min Specs
 AI Playground alpha and beta installers are currently available downloadable executables, or available as a source code from our Github repository.  To run AI Playground you must have a PC that meets the following specifications
 
@@ -129,6 +133,12 @@ Models currently linked from the application
 | DeepSeek-R1-Distill-Qwen 1.5B | [Model Card](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B) | [MIT License](https://opensource.org/licenses/MIT) |
 | DeepSeek-R1-Distill-Qwen 7B | [Model Card](https://huggingface.co/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B) | [MIT License](https://opensource.org/licenses/MIT) |
 | Gemma 3 4B IT (Unsloth) | [Model Card](https://huggingface.co/unsloth/gemma-3-4b-it) | [Gemma License](https://ai.google.dev/gemma/terms) |
+| Gemma 4 E2B IT (Google) | [Model Card](https://huggingface.co/google/gemma-4-E2B-it) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Gemma 4 E2B IT Assistant (Google) | [Model Card](https://huggingface.co/google/gemma-4-E2B-it-assistant) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Gemma 4 E4B IT (Google) | [Model Card](https://huggingface.co/google/gemma-4-E4B-it) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Gemma 4 E4B IT Assistant (Google) | [Model Card](https://huggingface.co/google/gemma-4-E4B-it-assistant) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Gemma 4 E2B IT GGUF (Unsloth) | [Model Card](https://huggingface.co/unsloth/gemma-4-E2B-it-GGUF) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
+| Gemma 4 E4B IT GGUF (Unsloth) | [Model Card](https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | gmk123/GFPGAN/GFPGANv1.4.pth | [Model Card](https://huggingface.co/gmk123/GFPGAN) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | GPT-OSS 20B (Unsloth) | [Model Card](https://huggingface.co/unsloth/gpt-oss-20b) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
 | InternVL2 4B (OV) | [Model Card](https://huggingface.co/OpenGVLab/InternVL2-4B) | [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0) |
@@ -185,6 +195,8 @@ Additionally, these entities and their work stand out as are fundamental to AI P
 *	ComfyUI -  https://github.com/comfyanonymous/ComfyUI
 *	OpenVINO - https://openvinotoolkit.github.io/openvino.genai/ 
 *	Llama.cpp - https://github.com/ggml-org/llama.cpp 
+*	Google Gemma - https://ai.google.dev/gemma
 *	Vue.js - https://vuejs.org/ 
+*	OpenAI Codex assisted with local feature development, documentation, and verification under human direction. See [CHANGELOG.md](CHANGELOG.md) for the AI assistance disclosure.
 *	Plus countless other open-source projects and contributors that make this work possible!
 
