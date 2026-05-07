@@ -2,6 +2,8 @@
   "MAIN_TITLE": "AI PLAYGROUND",
   "COM_SETTINGS": "Settings",
   "COM_MINI": "Minimize",
+  "COM_MAXIMIZE": "Maximize",
+  "COM_WINDOW_RESTORE": "Restore window",
   "COM_CLOSE": "Close",
   "COM_ADD": "Add",
   "COM_RESTORE": "Restore Defaults",

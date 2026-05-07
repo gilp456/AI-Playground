@@ -227,6 +227,7 @@ type electronAPI = {
   loadModels(): Promise<Model[]>
   zoomIn(): Promise<void>
   zoomOut(): Promise<void>
+  resetZoom?(): Promise<void>
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
@@ -236,6 +237,9 @@ type electronAPI = {
   getPlatform(): Promise<NodeJS.Platform>
   openImageWithSystem(url: string): void
   openImageInFolder(url: string): void
+  minimizeWindow?(): Promise<void>
+  toggleMaximizeWindow?(): Promise<boolean>
+  isWindowMaximized?(): Promise<boolean>
   setFullScreen(enable: boolean): void
   onDebugLog(
     callback: (data: {

@@ -27,7 +27,7 @@
     <div class="flex items-center">
       <DemoModeIndicator />
     </div>
-    <div class="flex justify-between items-center gap-5">
+    <div class="flex justify-between items-center gap-2">
       <button
         v-if="debugToolsEnabled"
         :title="languages.COM_SETTINGS"
@@ -42,8 +42,9 @@
           }
         "
         ref="showSettingBtn"
+        class="window-control-button"
       >
-        <ServerStackIcon class="size-6 text-foreground"></ServerStackIcon>
+        <ServerStackIcon class="window-control-icon text-foreground"></ServerStackIcon>
       </button>
       <div
         id="demo-buttons-group"
@@ -63,20 +64,32 @@
         v-if="!demoMode.enabled"
         :title="languages.COM_MINI"
         @click="miniWindow"
-        class="svg-icon i-mini w-6 h-6"
-      ></button>
+        class="window-control-button"
+      >
+        <span class="svg-icon i-mini window-control-icon"></span>
+      </button>
       <button
         v-if="!demoMode.enabled"
-        :title="fullscreen ? languages.COM_FULLSCREEN_EXIT : languages.COM_FULLSCREEN"
-        @click="toggleFullScreen"
-        class="svg-icon w-6 h-6"
-        :class="fullscreen ? 'i-fullscreen-exit' : 'i-fullscreen'"
-      ></button>
+        :title="
+          maximized
+            ? languages.COM_WINDOW_RESTORE || 'Restore window'
+            : languages.COM_MAXIMIZE || 'Maximize'
+        "
+        @click="toggleMaximizeWindow"
+        class="window-control-button"
+      >
+        <span
+          class="svg-icon window-control-icon"
+          :class="maximized ? 'i-fullscreen-exit' : 'i-fullscreen'"
+        ></span>
+      </button>
       <button
         :title="languages.COM_CLOSE"
         @click="closeWindow"
-        class="svg-icon i-close w-6 h-6"
-      ></button>
+        class="window-control-button"
+      >
+        <span class="svg-icon i-close window-control-icon"></span>
+      </button>
     </div>
   </header>
   <main
@@ -351,6 +364,7 @@ const footerExpanded = ref(true)
 const showAppSettings = ref(false)
 const showModelRequestDialog = ref(false)
 const fullscreen = ref(false)
+const maximized = ref(false)
 const showSpecificSettings = ref(false)
 
 const platformTitle = window.envVars.platformTitle
@@ -365,12 +379,24 @@ const licenseUrl = computed(() => `${gitHubRepoUrl.value}LICENSE`)
 const mode = useColorMode()
 mode.value = 'dark'
 
-const zoomIn = (event: KeyboardEvent) => {
-  if (event.ctrlKey && event.code === 'Equal') window.electronAPI.zoomIn()
+const handleZoomShortcut = (event: KeyboardEvent) => {
+  if (!event.ctrlKey) return
+
+  if (event.code === 'Equal' || event.code === 'NumpadAdd') {
+    event.preventDefault()
+    window.electronAPI.zoomIn()
+  } else if (event.code === 'Minus' || event.code === 'NumpadSubtract') {
+    event.preventDefault()
+    window.electronAPI.zoomOut()
+  } else if (event.code === 'Digit0' || event.code === 'Numpad0') {
+    event.preventDefault()
+    window.electronAPI.resetZoom?.()
+  }
 }
 
 const wheelZoom = (event: WheelEvent) => {
   if (!event.ctrlKey) return
+  event.preventDefault()
   if (event.deltaY < 0) {
     window.electronAPI.zoomIn()
   } else {
@@ -379,10 +405,10 @@ const wheelZoom = (event: WheelEvent) => {
 }
 
 onBeforeMount(async () => {
-  window.removeEventListener('keydown', zoomIn)
-  window.addEventListener('keydown', zoomIn, true)
+  window.removeEventListener('keydown', handleZoomShortcut)
+  window.addEventListener('keydown', handleZoomShortcut, true)
   window.removeEventListener('wheel', wheelZoom)
-  window.addEventListener('wheel', wheelZoom, true)
+  window.addEventListener('wheel', wheelZoom, { capture: true, passive: false })
   window.electronAPI.onDebugLog(({ level, source, message }) => {
     if (level == 'error') {
       if (message.startsWith('onednn_verbose')) return
@@ -409,6 +435,7 @@ onBeforeMount(async () => {
 onMounted(async () => {
   // Fetch dynamic GitHub repo URL for footer links
   gitHubRepoUrl.value = await window.electronAPI.getGitHubRepoUrl()
+  maximized.value = (await window.electronAPI.isWindowMaximized?.()) ?? false
 
   // Apply theme class to document root for CSS variables
   watch(
@@ -440,7 +467,19 @@ onMounted(async () => {
 })
 
 function miniWindow() {
-  window.electronAPI.miniWindow()
+  if (window.electronAPI.minimizeWindow) {
+    void window.electronAPI.minimizeWindow()
+  } else {
+    window.electronAPI.miniWindow()
+  }
+}
+
+async function toggleMaximizeWindow() {
+  if (window.electronAPI.toggleMaximizeWindow) {
+    maximized.value = await window.electronAPI.toggleMaximizeWindow()
+    return
+  }
+  toggleFullScreen()
 }
 
 function toggleFullScreen() {
@@ -503,3 +542,33 @@ watch(
   },
 )
 </script>
+
+<style scoped>
+.window-control-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  color: hsl(var(--foreground));
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.window-control-button:hover {
+  background-color: hsl(var(--muted) / 0.75);
+  color: hsl(var(--foreground));
+}
+
+.window-control-button:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+}
+
+.window-control-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+</style>

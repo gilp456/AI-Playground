@@ -89,6 +89,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadModels: () => ipcRenderer.invoke('loadModels'),
   zoomIn: () => ipcRenderer.invoke('zoomIn'),
   zoomOut: () => ipcRenderer.invoke('zoomOut'),
+  resetZoom: () => ipcRenderer.invoke('resetZoom'),
   getDownloadedLLMs: () => ipcRenderer.invoke('getDownloadedLLMs'),
   getDownloadedGGUFLLMs: () => ipcRenderer.invoke('getDownloadedGGUFLLMs'),
   getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
@@ -99,6 +100,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPlatform: () => ipcRenderer.invoke('getPlatform') as Promise<NodeJS.Platform>,
   openImageWithSystem: (url: string) => ipcRenderer.send('openImageWithSystem', url),
   openImageInFolder: (url: string) => ipcRenderer.send('openImageInFolder', url),
+  minimizeWindow: () => ipcRenderer.invoke('minimizeWindow'),
+  toggleMaximizeWindow: () => ipcRenderer.invoke('toggleMaximizeWindow') as Promise<boolean>,
+  isWindowMaximized: () => ipcRenderer.invoke('isWindowMaximized') as Promise<boolean>,
   setFullScreen: (enable: boolean) => ipcRenderer.send('setFullScreen', enable),
   onDebugLog: (callback: (data: { level: string; source: string; message: string }) => void) =>
     ipcRenderer.on('debugLog', (_event, value) => callback(value)),

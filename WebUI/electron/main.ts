@@ -93,6 +93,11 @@ import {
   detectGpuHardwareDevices,
   type GpuHardwareDevice,
 } from './subprocesses/hardwareDiscovery.ts'
+import {
+  DEFAULT_ZOOM_LEVEL,
+  nextZoomLevel,
+  previousZoomLevel,
+} from './windowControls.ts'
 import z from 'zod'
 
 const ProductModeUiI18nSchema = z.object({
@@ -447,6 +452,8 @@ async function createWindow() {
     // fullscreen: true,
     width: 1440,
     height: 951,
+    minWidth: 1180,
+    minHeight: 760,
     webPreferences: {
       preload: path.join(__dirname, '../preload/preload.js'),
       contextIsolation: true,
@@ -456,6 +463,7 @@ async function createWindow() {
     setTimeout(() => {
       appLogger.onWebcontentReady(win!.webContents)
     }, 100)
+    win?.webContents.setZoomLevel(DEFAULT_ZOOM_LEVEL)
 
     // Check localStorage for developer settings after page loads
     setTimeout(async () => {
@@ -811,13 +819,19 @@ function initEventHandle() {
   ipcMain.handle('zoomIn', (event: IpcMainInvokeEvent) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (!win) return
-    win.webContents.setZoomLevel(win.webContents.getZoomLevel() + 1)
+    win.webContents.setZoomLevel(nextZoomLevel(win.webContents.getZoomLevel()))
   })
 
   ipcMain.handle('zoomOut', (event: IpcMainInvokeEvent) => {
     const win = BrowserWindow.fromWebContents(event.sender)
     if (!win) return
-    win.webContents.setZoomLevel(win.webContents.getZoomLevel() - 1)
+    win.webContents.setZoomLevel(previousZoomLevel(win.webContents.getZoomLevel()))
+  })
+
+  ipcMain.handle('resetZoom', (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    win.webContents.setZoomLevel(DEFAULT_ZOOM_LEVEL)
   })
 
   ipcMain.on('openUrl', (_event, url: string) => {
@@ -850,13 +864,32 @@ function initEventHandle() {
     pathsManager.updateModelPaths(paths)
   })
 
-  ipcMain.on('miniWindow', () => {
-    if (win) {
-      win.minimize()
-    }
+  ipcMain.handle('minimizeWindow', (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    win?.minimize()
   })
 
-  ipcMain.on('setFullScreen', (_event: IpcMainEvent, enable: boolean) => {
+  ipcMain.on('miniWindow', (event: IpcMainEvent) => {
+    BrowserWindow.fromWebContents(event.sender)?.minimize()
+  })
+
+  ipcMain.handle('toggleMaximizeWindow', (event: IpcMainInvokeEvent) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return false
+    if (win.isMaximized()) {
+      win.unmaximize()
+    } else {
+      win.maximize()
+    }
+    return win.isMaximized()
+  })
+
+  ipcMain.handle('isWindowMaximized', (event: IpcMainInvokeEvent) => {
+    return BrowserWindow.fromWebContents(event.sender)?.isMaximized() ?? false
+  })
+
+  ipcMain.on('setFullScreen', (event: IpcMainEvent, enable: boolean) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
     if (win) {
       win.setFullScreen(enable)
     }
