@@ -37,6 +37,12 @@ import {
   UtilityProcess,
 } from 'electron'
 import path from 'node:path'
+
+if (!app.isPackaged) {
+  app.setName('AI Playground Codex Dev')
+  app.setPath('userData', path.join(app.getPath('appData'), 'ai-playground-codex-dev'))
+}
+
 import fs from 'fs'
 import { exec } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
