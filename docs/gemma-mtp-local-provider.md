@@ -43,9 +43,12 @@ The observed size explains why the original E4B official pair did not behave lik
 2. Select the `Gemma MTP - Transformers` backend.
 3. Select `google/gemma-4-E2B-it` as the Primary model.
 4. Confirm the Assistant model is shown as `google/gemma-4-E2B-it-assistant`.
-5. Send a prompt.
+5. Use Load Model to pre-load the selected primary/assistant pair before the first chat prompt, or send a prompt and allow AI Playground to load it on demand.
 6. During model preparation, review the loading details for backend, primary model, assistant model, assistant-token count, device, and context size.
-7. Use Unload Model in Chat Settings to release the loaded Gemma MTP pair without restarting AI Playground.
+7. After the selected pair is loaded, the same control changes to Unload Model.
+8. Use Unload Model in Chat Settings to release the loaded Gemma MTP pair without restarting AI Playground.
+
+The Load Model / Unload Model button reflects the selected Gemma MTP primary model, assistant model, and context settings. If the user changes to a different pair or context, the button returns to Load Model because the selected configuration is no longer prepared.
 
 ## Local Provider Behavior
 

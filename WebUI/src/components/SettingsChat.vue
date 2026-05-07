@@ -45,10 +45,10 @@
           v-if="textInference.backend === 'gemmaMTP'"
           variant="secondary"
           class="self-start w-auto px-3 py-1.5 rounded text-sm"
-          :disabled="ejectingModel"
-          @click="handleEjectModel"
+          :disabled="modelLoadActionInProgress || textInference.isPreparingBackend"
+          @click="handleGemmaMtpModelLoadAction"
         >
-          {{ ejectingModel ? 'Unloading Model...' : 'Unload Model' }}
+          {{ gemmaMtpModelLoadActionLabel }}
         </Button>
 
         <!-- Add Documents button - only shown when RAG is enabled -->
@@ -215,7 +215,7 @@ import { useProductMode } from '@/assets/js/store/productMode'
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
 const processing = ref(false)
-const ejectingModel = ref(false)
+const modelLoadActionInProgress = ref(false)
 const i18nState = useI18N().state
 const textInference = useTextInference()
 const presetsStore = usePresets()
@@ -265,7 +265,7 @@ function handleBackendChange(newBackend: string) {
 }
 
 async function handleEjectModel() {
-  ejectingModel.value = true
+  modelLoadActionInProgress.value = true
   try {
     await textInference.unloadActiveModel()
     toast.success('Gemma MTP model unloaded')
@@ -273,9 +273,38 @@ async function handleEjectModel() {
     const errorMessage = error instanceof Error ? error.message : String(error)
     toast.error(errorMessage)
   } finally {
-    ejectingModel.value = false
+    modelLoadActionInProgress.value = false
   }
 }
+
+async function handleLoadModel() {
+  modelLoadActionInProgress.value = true
+  try {
+    await textInference.loadActiveModel()
+    toast.success('Gemma MTP model loaded')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    toast.error(errorMessage)
+  } finally {
+    modelLoadActionInProgress.value = false
+  }
+}
+
+async function handleGemmaMtpModelLoadAction() {
+  if (textInference.isActiveGemmaMtpModelLoaded) {
+    await handleEjectModel()
+  } else {
+    await handleLoadModel()
+  }
+}
+
+const gemmaMtpModelLoadActionLabel = computed(() => {
+  if (textInference.isPreparingBackend) return 'Loading Model...'
+  if (modelLoadActionInProgress.value) {
+    return textInference.isActiveGemmaMtpModelLoaded ? 'Unloading Model...' : 'Loading Model...'
+  }
+  return textInference.isActiveGemmaMtpModelLoaded ? 'Unload Model' : 'Load Model'
+})
 
 async function handlePresetChange(presetName: string) {
   const result = await presetSwitching.switchPreset(presetName, {

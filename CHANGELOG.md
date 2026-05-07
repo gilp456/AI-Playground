@@ -2,6 +2,18 @@
 
 All notable local development changes are documented in this file.
 
+## 3.1.9-alpha.0-local - 2026-05-07
+
+### Changed
+
+- Changed the Gemma MTP model action in Chat Settings into a two-state Load Model / Unload Model control.
+- The button now shows Load Model when the selected Gemma MTP primary/assistant pair is not prepared, allowing users to pre-load the model before sending the first chat prompt.
+- The button now shows Unload Model only when the selected primary/assistant pair and context are already prepared for the current session.
+
+### Notes
+
+- This keeps the first-chat path and the manual pre-load path aligned: both use the same backend readiness flow and loading details.
+
 ## 3.1.8-alpha.0-local - 2026-05-07
 
 ### Added

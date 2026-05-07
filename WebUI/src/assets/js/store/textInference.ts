@@ -12,6 +12,22 @@ const LlmBackendSchema = z.enum(llmBackendTypes)
 export type LlmBackend = z.infer<typeof LlmBackendSchema>
 type LlmBackendKV = { [key in LlmBackend]: string | null }
 
+export type GemmaMtpReadinessSnapshot = {
+  activeModel: string | null | undefined
+  activeAssistantModel: string | null | undefined
+  lastUsedModel: string | null
+  lastUsedAssistantModel: string | null
+}
+
+export function isGemmaMtpSelectionLoaded(snapshot: GemmaMtpReadinessSnapshot): boolean {
+  return (
+    Boolean(snapshot.activeModel) &&
+    Boolean(snapshot.activeAssistantModel) &&
+    snapshot.activeModel === snapshot.lastUsedModel &&
+    snapshot.activeAssistantModel === snapshot.lastUsedAssistantModel
+  )
+}
+
 export const backendToService = {
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
@@ -135,6 +151,11 @@ export const useTextInference = defineStore(
         openVINO: null,
         gemmaMTP: null,
       } as Record<LlmBackend, number | null>,
+      lastUsedAssistantModel: {
+        llamaCPP: null,
+        openVINO: null,
+        gemmaMTP: null,
+      } as LlmBackendKV,
       isPreparingBackend: false,
     })
 
@@ -370,6 +391,22 @@ export const useTextInference = defineStore(
     const activeSpeculative = computed(() => {
       return llmModels.value.filter((m) => m.type === backend.value).find((m) => m.active)
         ?.speculative
+    })
+
+    const activeAssistantModel = computed(() => activeSpeculative.value?.assistantModel ?? null)
+
+    const isActiveGemmaMtpModelLoaded = computed(() => {
+      return (
+        backend.value === 'gemmaMTP' &&
+        isGemmaMtpSelectionLoaded({
+          activeModel: activeModel.value,
+          activeAssistantModel: activeAssistantModel.value,
+          lastUsedModel: backendReadinessState.lastUsedModel.gemmaMTP,
+          lastUsedAssistantModel: backendReadinessState.lastUsedAssistantModel.gemmaMTP,
+        }) &&
+        (!contextSizeSettingSupported.value ||
+          contextSize.value === backendReadinessState.lastUsedContextSize.gemmaMTP)
+      )
     })
 
     // Check if the active preset requires tool calling
@@ -852,6 +889,8 @@ export const useTextInference = defineStore(
       const currentBackend = backend.value
       backendReadinessState.lastUsedModel[currentBackend] = activeModel.value ?? null
       backendReadinessState.lastUsedContextSize[currentBackend] = contextSize.value
+      backendReadinessState.lastUsedAssistantModel[currentBackend] =
+        currentBackend === 'gemmaMTP' ? activeAssistantModel.value : null
     }
 
     async function ensureBackendReadiness(): Promise<void> {
@@ -889,14 +928,22 @@ export const useTextInference = defineStore(
 
     async function unloadActiveModel(): Promise<void> {
       if (backend.value !== 'gemmaMTP') {
-        throw new Error('Model eject is currently available for Gemma MTP models only')
+        throw new Error('Model unloading is currently available for Gemma MTP models only')
       }
       const result = await backendServices.unloadGemmaMtpModel()
       if (!result.success) {
-        throw new Error(result.error || 'Failed to eject Gemma MTP model')
+        throw new Error(result.error || 'Failed to unload Gemma MTP model')
       }
       backendReadinessState.lastUsedModel.gemmaMTP = null
       backendReadinessState.lastUsedContextSize.gemmaMTP = null
+      backendReadinessState.lastUsedAssistantModel.gemmaMTP = null
+    }
+
+    async function loadActiveModel(): Promise<void> {
+      if (backend.value !== 'gemmaMTP') {
+        throw new Error('Model preloading is currently available for Gemma MTP models only')
+      }
+      await ensureReadyForInference()
     }
 
     async function checkModelAvailability() {
@@ -1374,6 +1421,7 @@ export const useTextInference = defineStore(
       // Vision support
       modelSupportsVision,
       activeSpeculative,
+      isActiveGemmaMtpModelLoaded,
 
       // Backend preparation state and methods
       isPreparingBackend: computed(() => backendReadinessState.isPreparingBackend),
@@ -1384,6 +1432,7 @@ export const useTextInference = defineStore(
       startBackendPreparation,
       completeBackendPreparation,
       updateLastUsedConfig,
+      loadActiveModel,
       unloadActiveModel,
       prepareBackendIfNeeded,
       ensureReadyForInference,
