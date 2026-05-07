@@ -111,8 +111,8 @@
     "mmproj": "unsloth/gemma-4-E2B-it-GGUF/mmproj-BF16.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": true,
+    "supportsVision": false,
+    "supportsReasoning": false,
     "maxContextSize": 131072
   },
   {
@@ -120,8 +120,8 @@
     "mmproj": "unsloth/gemma-4-E4B-it-GGUF/mmproj-BF16.gguf",
     "type": "llamaCPP",
     "supportsToolCalling": true,
-    "supportsVision": true,
-    "supportsReasoning": true,
+    "supportsVision": false,
+    "supportsReasoning": false,
     "maxContextSize": 131072,
     "speculative": {
       "assistantModel": "unsloth/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-UD-Q4_K_XL.gguf",
