@@ -349,6 +349,11 @@ function getWritableSettingsPath(): string {
   return path.join(app.getPath('userData'), 'ai-playground-local-settings.json')
 }
 
+function getUserPresetsPath(): string {
+  const presetsFolder = app.isPackaged ? 'AI Playground' : 'AI Playground Codex Dev'
+  return path.join(app.getPath('documents'), presetsFolder, 'presets')
+}
+
 function persistLocalSettingsToDisk(): void {
   const settingPath = getWritableSettingsPath()
   const serialized = JSON.stringify(LocalSettingsSchema.parse(settings), null, 2)
@@ -1490,8 +1495,7 @@ function initEventHandle() {
   })
 
   ipcMain.handle('getUserPresetsPath', async () => {
-    const userDataPath = app.getPath('documents')
-    const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+    const presetsPath = getUserPresetsPath()
     // Ensure directory exists
     await fs.promises.mkdir(presetsPath, { recursive: true })
     return presetsPath
@@ -1499,8 +1503,7 @@ function initEventHandle() {
 
   ipcMain.handle('loadUserPresets', async () => {
     try {
-      const userDataPath = app.getPath('documents')
-      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      const presetsPath = getUserPresetsPath()
       const presets = await readPresetsFromDir(presetsPath)
       return [...presets.values()]
     } catch (error) {
@@ -1511,8 +1514,7 @@ function initEventHandle() {
 
   ipcMain.handle('saveUserPreset', async (_event, presetContent: string) => {
     try {
-      const userDataPath = app.getPath('documents')
-      const presetsPath = path.join(userDataPath, 'AI Playground', 'presets')
+      const presetsPath = getUserPresetsPath()
       await fs.promises.mkdir(presetsPath, { recursive: true })
 
       // Parse to get preset name for filename
