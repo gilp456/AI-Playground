@@ -35,8 +35,8 @@ const formatCapabilities = () => {
   if (props.model.supportsToolCalling) caps.push('Tool Calling')
   if (props.model.supportsReasoning) caps.push('Reasoning')
   if (props.model.npuSupport) caps.push('NPU Support')
-  if (props.model.speculative?.assistantModel) caps.push('MTP Target')
-  if (props.model.draftFor) caps.push('Draft Model')
+  if (props.model.speculative?.assistantModel) caps.push('Accelerated')
+  if (props.model.draftFor) caps.push('Speed Helper')
   return caps
 }
 
@@ -68,10 +68,11 @@ const modelFileName = (name: string) => name.split('/').at(-1) ?? name
               </p>
             </div>
             <p v-if="model.speculative?.assistantModel" class="text-xs text-muted-foreground">
-              Uses {{ modelFileName(model.speculative.assistantModel) }} as draft model.
+              Primary chat model. Automatically loads
+              {{ modelFileName(model.speculative.assistantModel) }} to speed up generation.
             </p>
             <p v-if="model.draftFor" class="text-xs text-muted-foreground">
-              Draft model for {{ modelFileName(model.draftFor) }}.
+              Helper model for {{ modelFileName(model.draftFor) }}. Pick the primary model for chat.
             </p>
             <h4 class="text-xs">Capabilities</h4>
             <div class="flex flex-wrap gap-2">
