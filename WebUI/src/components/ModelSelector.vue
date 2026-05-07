@@ -30,8 +30,17 @@ const currentModel = computed(() => {
   return textInference.llmModels.find((m) => m.active && m.type === textInference.backend)
 })
 
+const modelFileName = (name: string) => name.split('/').at(-1) ?? name
+
 const items = computed(() => {
   const activePreset = presetsStore.activePresetWithVariant
+  const modelsForBackend = textInference.llmModels.filter((m) => m.type === textInference.backend)
+  const draftModelUsage = new Map<string, string>()
+  for (const model of modelsForBackend) {
+    if (model.speculative?.assistantModel) {
+      draftModelUsage.set(model.speculative.assistantModel, model.name)
+    }
+  }
   const requirements = {
     vision: activePreset?.type === 'chat' && activePreset.requiresVision === true,
     toolCalling: activePreset?.type === 'chat' && activePreset.requiresToolCalling === true,
@@ -41,8 +50,7 @@ const items = computed(() => {
     advancedMode: activePreset?.type === 'chat' && activePreset.advancedMode === true,
   }
 
-  return textInference.llmModels
-    .filter((m) => m.type === textInference.backend)
+  return modelsForBackend
     .filter((m) => {
       // Filter by preset requirements
       if (requirements.vision && !m.supportsVision) return false
@@ -77,16 +85,28 @@ const items = computed(() => {
       }
       return true
     })
-    .map((item) => ({
-      label: item.name.split('/').at(-1) ?? item.name,
-      value: item.name,
-      active: item.downloaded,
-      supportsToolCalling: item.supportsToolCalling,
-      supportsVision: item.supportsVision,
-      supportsReasoning: item.supportsReasoning,
-      maxContextSize: item.maxContextSize,
-      npuSupport: item.npuSupport,
-    }))
+    .map((item) => {
+      const draftFor = draftModelUsage.get(item.name)
+      const assistantModel = item.speculative?.assistantModel
+      return {
+        label: modelFileName(item.name),
+        value: item.name,
+        active: item.downloaded,
+        supportsToolCalling: item.supportsToolCalling,
+        supportsVision: item.supportsVision,
+        supportsReasoning: item.supportsReasoning,
+        maxContextSize: item.maxContextSize,
+        npuSupport: item.npuSupport,
+        speculative: item.speculative,
+        draftFor,
+        roleLabel: assistantModel ? 'MTP target' : draftFor ? 'Draft' : undefined,
+        roleDescription: assistantModel
+          ? `Uses ${modelFileName(assistantModel)} as draft`
+          : draftFor
+            ? `Draft for ${modelFileName(draftFor)}`
+            : undefined,
+      }
+    })
 })
 
 const selectedItem = computed(() => {
@@ -95,6 +115,8 @@ const selectedItem = computed(() => {
       label: 'Select...',
       value: '',
       active: false,
+      roleLabel: undefined,
+      roleDescription: undefined,
     }
   )
 })
@@ -126,6 +148,12 @@ watchEffect(() => {
             {{ selectedItem.label }}
           </span>
           <div class="flex items-center gap-1">
+            <span
+              v-if="selectedItem.roleLabel"
+              class="px-1.5 py-0.5 text-[10px] leading-none rounded-sm bg-primary/10 text-primary"
+            >
+              {{ selectedItem.roleLabel }}
+            </span>
             <ModelCapabilities v-if="currentModel" :model="currentModel" />
             <ChevronDownIcon class="size-4 text-muted-foreground"></ChevronDownIcon>
           </div>
@@ -153,7 +181,20 @@ watchEffect(() => {
               class="w-2 h-2 rounded-full mr-2 shrink-0"
               :class="item.active ? 'bg-primary' : 'bg-muted-foreground'"
             ></div>
-            <span class="flex-1 truncate">{{ item.label }}</span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 min-w-0">
+                <span class="truncate">{{ item.label }}</span>
+                <span
+                  v-if="item.roleLabel"
+                  class="px-1.5 py-0.5 text-[10px] leading-none rounded-sm bg-primary/10 text-primary shrink-0"
+                >
+                  {{ item.roleLabel }}
+                </span>
+              </div>
+              <p v-if="item.roleDescription" class="text-xs text-muted-foreground truncate">
+                {{ item.roleDescription }}
+              </p>
+            </div>
             <div class="flex gap-1 ml-2 shrink-0">
               <ModelCapabilities
                 :model="{
@@ -163,6 +204,8 @@ watchEffect(() => {
                   supportsReasoning: item.supportsReasoning,
                   maxContextSize: item.maxContextSize,
                   npuSupport: item.npuSupport,
+                  speculative: item.speculative,
+                  draftFor: item.draftFor,
                 }"
                 icon-size="size-3.5"
               />

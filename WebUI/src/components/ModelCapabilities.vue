@@ -10,6 +10,11 @@ interface ModelCapabilities {
   maxContextSize?: number
   name?: string
   npuSupport?: boolean
+  speculative?: {
+    assistantModel: string
+    numAssistantTokens?: number
+  }
+  draftFor?: string
 }
 
 const props = withDefaults(
@@ -30,6 +35,8 @@ const formatCapabilities = () => {
   if (props.model.supportsToolCalling) caps.push('Tool Calling')
   if (props.model.supportsReasoning) caps.push('Reasoning')
   if (props.model.npuSupport) caps.push('NPU Support')
+  if (props.model.speculative?.assistantModel) caps.push('MTP Target')
+  if (props.model.draftFor) caps.push('Draft Model')
   return caps
 }
 
@@ -40,6 +47,7 @@ const formatMaxContextSize = (size?: number) => {
 
 const capabilities = computed(() => formatCapabilities())
 const maxContextSizeFormatted = computed(() => formatMaxContextSize(props.model.maxContextSize))
+const modelFileName = (name: string) => name.split('/').at(-1) ?? name
 </script>
 
 <template>
@@ -59,6 +67,12 @@ const maxContextSizeFormatted = computed(() => formatMaxContextSize(props.model.
                 Max Context Size: {{ maxContextSizeFormatted }} tokens
               </p>
             </div>
+            <p v-if="model.speculative?.assistantModel" class="text-xs text-muted-foreground">
+              Uses {{ modelFileName(model.speculative.assistantModel) }} as draft model.
+            </p>
+            <p v-if="model.draftFor" class="text-xs text-muted-foreground">
+              Draft model for {{ modelFileName(model.draftFor) }}.
+            </p>
             <h4 class="text-xs">Capabilities</h4>
             <div class="flex flex-wrap gap-2">
               <span
