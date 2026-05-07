@@ -60,6 +60,7 @@ try:
 
     import model_download_adpater
     import utils
+    import gemma_mtp_runtime
     from model_downloader import HFPlaygroundDownloader
     from psutil._common import bytes2human
     import traceback
@@ -72,6 +73,38 @@ try:
     @app.get("/healthy")
     def healthEndpoint():
         return jsonify({"health": "OK"})
+
+    @app.post("/api/gemmaMtp/load")
+    def load_gemma_mtp():
+        body = request.get_json() or {}
+        model_id = body.get("model")
+        assistant_model_id = body.get("assistant_model")
+        model_path = body.get("model_path")
+        if not model_id or not assistant_model_id or not model_path:
+            return jsonify({"error": "model, assistant_model, and model_path are required"}), 400
+
+        loaded = gemma_mtp_runtime.load_model_pair(
+            model_id=model_id,
+            assistant_model_id=assistant_model_id,
+            model_root=model_path,
+            requested_device=body.get("device"),
+            num_assistant_tokens=int(body.get("num_assistant_tokens") or 4),
+        )
+        return jsonify(loaded)
+
+    @app.get("/api/gemmaMtp/loaded")
+    def get_loaded_gemma_mtp():
+        return jsonify(gemma_mtp_runtime.get_loaded_info())
+
+    @app.post("/v1/chat/completions")
+    def chat_completions():
+        body = request.get_json() or {}
+        if body.get("stream") is True:
+            return Response(
+                stream_with_context(gemma_mtp_runtime.chat_completion_stream(body)),
+                content_type="text/event-stream",
+            )
+        return jsonify(gemma_mtp_runtime.chat_completion(body))
 
     @app.get("/api/applicationExit")
     def applicationExit():

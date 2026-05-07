@@ -69,6 +69,8 @@ def get_model_path(type: str, backend: str):
             return config.llama_cpp_model_paths.get(type)
         case "openvino":
             return config.openvino_model_paths.get(type)
+        case "transformers":
+            return config.transformers_model_paths.get(type)
         case "comfyui":
             return config.comfy_ui_model_paths.get(type)
 
@@ -88,6 +90,8 @@ def check_mmodel_exist(type: str, repo_id: str, backend: str, model_path: str = 
             return check_comfyui_model_exists(type, repo_id)
         case "llama_cpp":
             return check_llama_cpp_model_exists(type, repo_id)
+        case "transformers":
+            return check_transformers_model_exists(type, repo_id)
         case _:
             raise NameError("Unknown Backend")
 
@@ -154,6 +158,14 @@ def check_llama_cpp_model_exists(type: str, repo_id: str) -> bool:
     model_dir = config.llama_cpp_model_paths.get(type)
     dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id), extract_model_id_pathsegments(repo_id))
     return os.path.exists(dir_to_look_for)
+
+def check_transformers_model_exists(type: str, repo_id: str) -> bool:
+    """Check if a Hugging Face Transformers model exists"""
+    model_dir = config.transformers_model_paths.get(type)
+    if model_dir is None:
+        return False
+    dir_to_look_for = os.path.join(model_dir, repo_local_root_dir_name(repo_id))
+    return os.path.isdir(dir_to_look_for)
 
 def check_comfyui_model_exists(type: str, repo_id: str) -> bool:
     """Check if a ComfyUI model exists, and restore from storage if missing in ComfyUI directory"""

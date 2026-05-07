@@ -212,7 +212,9 @@ function optionalNumber(value: unknown): number | undefined {
 }
 
 function serviceNameForModel(model: LocalProviderModel): BackendServiceName {
-  return model.type === 'openVINO' ? 'openvino-backend' : 'llamacpp-backend'
+  if (model.type === 'openVINO') return 'openvino-backend'
+  if (model.type === 'gemmaMTP') return 'ai-backend'
+  return 'llamacpp-backend'
 }
 
 async function pipeBackendResponse(

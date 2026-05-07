@@ -230,6 +230,7 @@ type electronAPI = {
   getDownloadedLLMs(): Promise<string[]>
   getDownloadedGGUFLLMs(): Promise<string[]>
   getDownloadedOpenVINOLLMModels(): Promise<string[]>
+  getDownloadedTransformersLLMModels(): Promise<string[]>
   getDownloadedEmbeddingModels(): Promise<Model[]>
   getComfyUIModels(modelType: string): Promise<string[]>
   getPlatform(): Promise<NodeJS.Platform>
@@ -569,7 +570,7 @@ type DownloadFailedParams = {
 type CheckModelAlreadyLoadedParameters = {
   repo_id: string
   type: string
-  backend: 'comfyui' | 'llama_cpp' | 'openvino'
+  backend: 'comfyui' | 'llama_cpp' | 'openvino' | 'transformers'
   model_path: string
   additionalLicenseLink?: string
 }
@@ -625,10 +626,10 @@ type ApiServiceInformation = {
 
 type Model = {
   name: string
-  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP'
+  type: 'undefined' | 'embedding' | 'openVINO' | 'llamaCPP' | 'gemmaMTP'
   default: boolean
   downloaded?: boolean | undefined
-  backend?: 'openVINO' | 'llamaCPP' | undefined
+  backend?: 'openVINO' | 'llamaCPP' | 'gemmaMTP' | undefined
   supportsToolCalling?: boolean
   supportsVision?: boolean
   maxContextSize?: number

@@ -10,6 +10,9 @@ dependencies = [
   "Requests",
   "setuptools",
   "huggingface_hub",
+  "accelerate",
+  "torch",
+  "transformers>=4.57.0",
 ]
 [tool.uv]
 python-preference = "only-managed"

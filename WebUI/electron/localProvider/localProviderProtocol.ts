@@ -33,7 +33,9 @@ export function createModelListResponse(models: LocalProviderModel[]) {
     object: 'list',
     data: models
       .filter(
-        (model) => model.downloaded && (model.type === 'llamaCPP' || model.type === 'openVINO'),
+        (model) =>
+          model.downloaded &&
+          (model.type === 'llamaCPP' || model.type === 'openVINO' || model.type === 'gemmaMTP'),
       )
       .map((model) => ({
         id: model.name,

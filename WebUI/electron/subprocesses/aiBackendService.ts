@@ -4,6 +4,8 @@ import { GitService, LongLivedPythonApiService, createEnhancedErrorDetails } fro
 import { aipgBaseDir, checkBackend, installBackend } from './uvBasedBackends/uv.ts'
 import { BrowserWindow } from 'electron'
 import { LocalSettings } from '../main.ts'
+import { detectIntelGpusViaXpuSmi, detectIntelGpusViaPowerShell } from './hardwareDiscovery.ts'
+import type { BackendRuntimeOptions } from './speculativeDecoding.ts'
 
 export type GpuHardwareDevice = {
   device: string
@@ -35,8 +37,11 @@ export class AiBackendService extends LongLivedPythonApiService {
   readonly baseDir = path.resolve(path.join(aipgBaseDir, this.serviceFolder))
   readonly serviceDir = this.baseDir
   readonly pythonEnvDir = path.resolve(path.join(this.serviceDir, '.venv'))
-  devices: InferenceDevice[] = [{ id: '*', name: 'Auto select device', selected: true }]
+  devices: InferenceDevice[] = [{ id: 'auto', name: 'Auto select device', selected: true }]
   readonly git = new GitService()
+  private currentMtpModel: string | null = null
+  private currentMtpAssistantModel: string | null = null
+  private currentMtpDevice: string | null = null
 
   readonly isRequired = true
   healthEndpointUrl = `${this.baseUrl}/healthy`
@@ -48,7 +53,69 @@ export class AiBackendService extends LongLivedPythonApiService {
     return result
   }
 
-  async detectDevices() {}
+  async detectDevices() {
+    const intelGpus = await detectIntelGpusViaXpuSmi()
+    const fallbackGpus = intelGpus.length > 0 ? intelGpus : await detectIntelGpusViaPowerShell()
+    const gpuDevices = fallbackGpus.map<InferenceDevice>((gpu, index) => ({
+      id: `xpu:${index}`,
+      name: gpu.name || `Intel GPU ${index}`,
+      selected: index === 0,
+    }))
+    this.devices = [
+      ...gpuDevices,
+      {
+        id: 'cpu',
+        name: 'CPU',
+        selected: gpuDevices.length === 0,
+      },
+    ]
+    if (this.devices.length === 0) {
+      this.devices = [{ id: 'cpu', name: 'CPU', selected: true }]
+    }
+    this.updateStatus()
+  }
+
+  async ensureBackendReadiness(
+    llmModelName: string,
+    _embeddingModelName?: string,
+    _contextSize?: number,
+    runtimeOptions?: BackendRuntimeOptions,
+  ): Promise<void> {
+    await this.start()
+    const assistantModel = runtimeOptions?.speculative?.assistantModel
+    if (!assistantModel) {
+      return
+    }
+
+    const selectedDevice = this.devices.find((device) => device.selected)?.id ?? 'auto'
+    const device = selectedDevice === 'auto' ? undefined : selectedDevice
+    if (
+      this.currentMtpModel === llmModelName &&
+      this.currentMtpAssistantModel === assistantModel &&
+      this.currentMtpDevice === selectedDevice
+    ) {
+      return
+    }
+
+    const modelRoot = path.resolve(path.join(aipgBaseDir, 'models', 'LLM', 'transformers'))
+    const response = await fetch(`${this.baseUrl}/api/gemmaMtp/load`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: llmModelName,
+        assistant_model: assistantModel,
+        model_path: modelRoot,
+        device,
+        num_assistant_tokens: runtimeOptions?.speculative?.numAssistantTokens ?? 4,
+      }),
+    })
+    if (!response.ok) {
+      throw new Error(`Failed to load Gemma MTP model pair: ${await response.text()}`)
+    }
+    this.currentMtpModel = llmModelName
+    this.currentMtpAssistantModel = assistantModel
+    this.currentMtpDevice = selectedDevice
+  }
 
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')

@@ -1,6 +1,6 @@
 import z from 'zod'
 
-export const llmBackendTypes = ['openVINO', 'llamaCPP'] as const
+export const llmBackendTypes = ['openVINO', 'llamaCPP', 'gemmaMTP'] as const
 
 export const SpeculativeDecodingSchema = z.object({
   assistantModel: z.string(),

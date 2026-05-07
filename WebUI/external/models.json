@@ -129,6 +129,18 @@
     }
   },
   {
+    "name": "google/gemma-4-E4B-it",
+    "type": "gemmaMTP",
+    "supportsToolCalling": false,
+    "supportsVision": false,
+    "supportsReasoning": false,
+    "maxContextSize": 131072,
+    "speculative": {
+      "assistantModel": "google/gemma-4-E4B-it-assistant",
+      "numAssistantTokens": 4
+    }
+  },
+  {
     "name": "OpenVINO/Phi-3.5-mini-instruct-int4-ov",
     "type": "openVINO",
     "supportsToolCalling": false,

@@ -16,6 +16,11 @@ openvino_model_paths = {
     "STT": "../models/STT",
 }
 
+# Hugging Face Transformers model paths (defaults only - fallback if not provided via API)
+transformers_model_paths = {
+    "transformersLLM": "../models/LLM/transformers",
+}
+
 # ComfyUI related paths
 comfy_ui_root_path = "../ComfyUI"
 comfyui_python_exe = "../comfyui-backend-env/python.exe"

@@ -150,7 +150,7 @@ const ComfyUiPresetSchema = BasePresetFieldsSchema.extend({
 })
 
 // LLM Backend enum for chat presets
-const LlmBackendEnum = z.enum(['llamaCPP', 'openVINO'])
+const LlmBackendEnum = z.enum(['llamaCPP', 'openVINO', 'gemmaMTP'])
 
 // Chat Preset Schema - uses 'backends' array instead of single 'backend'
 const ChatPresetSchema = BasePresetFieldsSchema.omit({ backend: true }).extend({

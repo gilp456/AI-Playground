@@ -6,6 +6,7 @@ import { useBackendServices } from './backendServices'
 export type ModelPaths = {
   ggufLLM: string
   openvinoLLM: string
+  transformersLLM: string
   embedding: string
 } & StringKV
 
@@ -62,6 +63,7 @@ export const useModels = defineStore(
     const paths = ref<ModelPaths>({
       ggufLLM: '',
       openvinoLLM: '',
+      transformersLLM: '',
       embedding: '',
     })
 
@@ -72,6 +74,7 @@ export const useModels = defineStore(
       }
       const ggufModels = await window.electronAPI.getDownloadedGGUFLLMs()
       const openVINOLLMModels = await window.electronAPI.getDownloadedOpenVINOLLMModels()
+      const transformersLLMModels = await window.electronAPI.getDownloadedTransformersLLMModels()
       const embeddingModels = await window.electronAPI.getDownloadedEmbeddingModels()
 
       const downloadedModels = [
@@ -82,6 +85,10 @@ export const useModels = defineStore(
         ...openVINOLLMModels.map<{ name: string; type: ModelType }>((name) => ({
           name,
           type: 'openVINO',
+        })),
+        ...transformersLLMModels.map<{ name: string; type: ModelType }>((name) => ({
+          name,
+          type: 'gemmaMTP',
         })),
         ...embeddingModels,
       ]
@@ -209,7 +216,7 @@ export const useModels = defineStore(
     /**
      * Maps model type and backend to the appropriate ModelPaths entry
      * @param type - Model type (e.g., 'ggufLLM', 'checkpoints', 'embedding')
-     * @param backend - Backend name (e.g., 'llama_cpp', 'comfyui', 'openvino')
+     * @param backend - Backend name (e.g., 'llama_cpp', 'comfyui', 'openvino', 'transformers')
      * @param modelPaths - Optional ModelPaths override, defaults to store's paths
      */
     function getModelPath(type: string, backend: string, modelPaths?: ModelPaths): string {
@@ -251,6 +258,12 @@ export const useModels = defineStore(
         if (type === 'STT') {
           // STT path for openvino transcription models
           return pathsToUse['STT'] || ''
+        }
+      }
+
+      if (backend === 'transformers') {
+        if (type === 'transformersLLM') {
+          return pathsToUse.transformersLLM || ''
         }
       }
 
@@ -373,7 +386,7 @@ export const useModels = defineStore(
       params: Array<{
         repo_id: string
         type: string
-        backend: 'comfyui' | 'llama_cpp' | 'openvino'
+        backend: 'comfyui' | 'llama_cpp' | 'openvino' | 'transformers'
         additionalLicenseLink?: string
       }>,
     ) {

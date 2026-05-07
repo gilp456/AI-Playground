@@ -1,6 +1,7 @@
 {
   "ggufLLM": "../models/LLM/ggufLLM",
   "openvinoLLM": "../models/LLM/openvino",
+  "transformersLLM": "../models/LLM/transformers",
   "embedding": "../models/LLM/embedding",
   "STT": "../models/STT",
   "checkpoints": "../models/ComfyUI/checkpoints",

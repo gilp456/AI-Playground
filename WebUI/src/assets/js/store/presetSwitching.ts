@@ -38,6 +38,7 @@ function presetToMode(preset: Preset): ModeType {
 const backendToService = {
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
+  gemmaMTP: 'ai-backend',
 } as const
 
 type LlmBackend = keyof typeof backendToService

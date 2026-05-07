@@ -15,6 +15,7 @@ type LlmBackendKV = { [key in LlmBackend]: string | null }
 export const backendToService = {
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
+  gemmaMTP: 'ai-backend',
 } as const
 
 export type LlmModel = {
@@ -79,6 +80,7 @@ export const thinkingModels: Record<string, string> = {
 export const textInferenceBackendDisplayName: Record<LlmBackend, string> = {
   llamaCPP: 'llamaCPP - GGUF',
   openVINO: 'OpenVINO',
+  gemmaMTP: 'Gemma MTP - Transformers',
 }
 
 export const textInferenceBackendDescription: Record<LlmBackend, string> = {
@@ -86,11 +88,14 @@ export const textInferenceBackendDescription: Record<LlmBackend, string> = {
     'Utilizes Llama.cpp for lightweight and portable AI solutions. Ideal for low-resource environments.',
   openVINO:
     'Optimized for Intel hardware with OpenVINO framework. Provides efficient and fast AI processing.',
+  gemmaMTP:
+    'Runs Google official Gemma 4 target and assistant models with Hugging Face Transformers on Intel Arc GPU when available.',
 }
 
 export const textInferenceBackendTags: Record<LlmBackend, string[]> = {
   llamaCPP: ['Lightweight', 'Portable'],
   openVINO: ['Intel', 'Optimized', 'Fast'],
+  gemmaMTP: ['Official', 'MTP', 'Intel GPU'],
 }
 
 export const useTextInference = defineStore(
@@ -109,11 +114,13 @@ export const useTextInference = defineStore(
     const selectedModels = ref<LlmBackendKV>({
       llamaCPP: null,
       openVINO: null,
+      gemmaMTP: null,
     })
 
     const selectedEmbeddingModels = ref<LlmBackendKV>({
       llamaCPP: null,
       openVINO: null,
+      gemmaMTP: null,
     })
 
     // Backend readiness state tracking
@@ -121,10 +128,12 @@ export const useTextInference = defineStore(
       lastUsedModel: {
         llamaCPP: null,
         openVINO: null,
+        gemmaMTP: null,
       } as LlmBackendKV,
       lastUsedContextSize: {
         llamaCPP: null,
         openVINO: null,
+        gemmaMTP: null,
       } as Record<LlmBackend, number | null>,
       isPreparingBackend: false,
     })
@@ -228,11 +237,13 @@ export const useTextInference = defineStore(
     const backendToAipgBackendName = {
       openVINO: 'openvino',
       llamaCPP: 'llama_cpp',
+      gemmaMTP: 'transformers',
     } as const
 
     const backendToAipgModelType = {
       openVINO: 'openvinoLLM',
       llamaCPP: 'ggufLLM',
+      gemmaMTP: 'transformersLLM',
     } as const
 
     const activeModel: Ref<string | undefined> = computed(() => {
@@ -254,6 +265,7 @@ export const useTextInference = defineStore(
     const contextSizeSettingSupported = computed(
       () =>
         backend.value === 'llamaCPP' ||
+        backend.value === 'gemmaMTP' ||
         (backend.value === 'openVINO' && runningOnOpenvinoNpu.value),
     )
 
@@ -826,7 +838,11 @@ export const useTextInference = defineStore(
     }
 
     async function ensureBackendReadiness(): Promise<void> {
-      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
+      if (
+        backend.value === 'llamaCPP' ||
+        backend.value === 'openVINO' ||
+        backend.value === 'gemmaMTP'
+      ) {
         const serviceName = backendToService[backend.value]
         const llmModelName = activeModel.value
         const embeddingModelName = activeEmbeddingModel.value
@@ -931,7 +947,11 @@ export const useTextInference = defineStore(
 
       // Always show loading bar for llamaCPP/openVINO when ensuring backend readiness
       // This ensures consistent UX even when switching back to a previously-used backend
-      if (backend.value === 'llamaCPP' || backend.value === 'openVINO') {
+      if (
+        backend.value === 'llamaCPP' ||
+        backend.value === 'openVINO' ||
+        backend.value === 'gemmaMTP'
+      ) {
         startBackendPreparation()
         try {
           await ensureBackendReadiness()
@@ -945,6 +965,7 @@ export const useTextInference = defineStore(
       const backendToInferenceService: Record<LlmBackend, BackendServiceName> = {
         llamaCPP: 'llamacpp-backend',
         openVINO: 'openvino-backend',
+        gemmaMTP: 'ai-backend',
       }
       const inferenceBackendService = backendToInferenceService[backend.value]
       await backendServices.resetLastUsedInferenceBackend(inferenceBackendService)

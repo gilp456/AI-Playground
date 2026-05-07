@@ -1,0 +1,15 @@
+{
+  "name": "Gemma 4 Accelerated Chat",
+  "description": "Official Google Gemma 4 target plus assistant model for faster local text generation.",
+  "type": "chat",
+  "tags": ["Chat", "Text", "Accelerated"],
+  "backends": ["gemmaMTP"],
+  "preferredModels": {
+    "gemmaMTP": "google/gemma-4-E4B-it"
+  },
+  "filterTxt2TxtOnly": true,
+  "systemPrompt": "You are a helpful AI assistant.",
+  "contextSize": 8192,
+  "maxNewTokens": 2048,
+  "temperature": 0.7
+}

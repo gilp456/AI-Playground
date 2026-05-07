@@ -838,11 +838,13 @@ function initEventHandle() {
       ? {
           ggufLLM: './resources/models/LLM/ggufLLM',
           openvinoLLM: './resources/models/LLM/openvino',
+          transformersLLM: './resources/models/LLM/transformers',
           embedding: './resources/models/LLM/embedding',
         }
       : {
           ggufLLM: '../models/LLM/ggufLLM',
           openvinoLLM: '../models/LLM/openvino',
+          transformersLLM: '../models/LLM/transformers',
           embedding: '../models/LLM/embedding',
         }
     pathsManager.updateModelPaths(paths)
@@ -967,6 +969,7 @@ function initEventHandle() {
     const downloadedModels = [
       ...pathsManager.scanGGUFLLMModels().map((name) => ({ name, type: 'llamaCPP' })),
       ...pathsManager.scanOpenVINOModels().map((name) => ({ name, type: 'openVINO' })),
+      ...pathsManager.scanTransformersModels().map((name) => ({ name, type: 'gemmaMTP' })),
     ]
     const downloadedModelNames = new Set(downloadedModels.map((model) => model.name))
     const predefinedModelNames = new Set(predefinedModels.map((model) => model.name))
@@ -1053,6 +1056,10 @@ function initEventHandle() {
 
   ipcMain.handle('getDownloadedOpenVINOLLMModels', (_event) => {
     return pathsManager.scanOpenVINOModels()
+  })
+
+  ipcMain.handle('getDownloadedTransformersLLMModels', (_event) => {
+    return pathsManager.scanTransformersModels()
   })
 
   ipcMain.handle('getDownloadedEmbeddingModels', (_event) => {

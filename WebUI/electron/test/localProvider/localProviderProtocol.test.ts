@@ -10,6 +10,7 @@ describe('localProviderProtocol', () => {
   it('lists chat-capable models in OpenAI model-list format', () => {
     const response = createModelListResponse([
       { name: 'OpenVINO/Gemma-4-E4B-it-mtp-ov', type: 'openVINO', downloaded: true },
+      { name: 'google/gemma-4-E4B-it', type: 'gemmaMTP', downloaded: true },
       { name: 'OpenVINO/bge-base-en-v1.5-fp16-ov', type: 'embedding', downloaded: true },
       { name: 'missing/model.gguf', type: 'llamaCPP', downloaded: false },
     ])
@@ -19,6 +20,11 @@ describe('localProviderProtocol', () => {
       data: [
         {
           id: 'OpenVINO/Gemma-4-E4B-it-mtp-ov',
+          object: 'model',
+          owned_by: 'ai-playground',
+        },
+        {
+          id: 'google/gemma-4-E4B-it',
           object: 'model',
           owned_by: 'ai-playground',
         },
@@ -49,6 +55,29 @@ describe('localProviderProtocol', () => {
       messages: [{ role: 'user', content: 'hello' }],
       stream: true,
       num_assistant_tokens: 5,
+    })
+  })
+
+  it('preserves official Gemma MTP model IDs for the Transformers backend', () => {
+    const payload = createChatCompletionPayload(
+      {
+        model: 'google/gemma-4-E4B-it',
+        messages: [{ role: 'user', content: 'hello' }],
+      },
+      {
+        name: 'google/gemma-4-E4B-it',
+        type: 'gemmaMTP',
+        downloaded: true,
+        speculative: {
+          assistantModel: 'google/gemma-4-E4B-it-assistant',
+          numAssistantTokens: 4,
+        },
+      },
+    )
+
+    expect(payload).toEqual({
+      model: 'google/gemma-4-E4B-it',
+      messages: [{ role: 'user', content: 'hello' }],
     })
   })
 

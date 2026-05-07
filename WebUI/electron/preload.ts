@@ -92,6 +92,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDownloadedLLMs: () => ipcRenderer.invoke('getDownloadedLLMs'),
   getDownloadedGGUFLLMs: () => ipcRenderer.invoke('getDownloadedGGUFLLMs'),
   getDownloadedOpenVINOLLMModels: () => ipcRenderer.invoke('getDownloadedOpenVINOLLMModels'),
+  getDownloadedTransformersLLMModels: () =>
+    ipcRenderer.invoke('getDownloadedTransformersLLMModels'),
   getDownloadedEmbeddingModels: () => ipcRenderer.invoke('getDownloadedEmbeddingModels'),
   getComfyUIModels: (modelType: string) => ipcRenderer.invoke('getComfyUIModels', modelType),
   getPlatform: () => ipcRenderer.invoke('getPlatform') as Promise<NodeJS.Platform>,

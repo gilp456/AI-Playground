@@ -105,7 +105,11 @@ export const useOpenAiCompatibleChat = defineStore(
           }
           return globalThis.fetch(requestUrl.toString(), init)
         },
-      }).chatModel(textInference.activeModel?.split('/').join('---') ?? ''),
+      }).chatModel(
+        textInference.backend === 'openVINO'
+          ? (textInference.activeModel?.split('/').join('---') ?? '')
+          : (textInference.activeModel ?? ''),
+      ),
     )
 
     function isToolEnabled(toolName: string): boolean {

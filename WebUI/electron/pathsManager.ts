@@ -7,6 +7,7 @@ export class PathsManager {
   modelPaths: ModelPaths = {
     ggufLLM: '',
     openvinoLLM: '',
+    transformersLLM: '',
     embedding: '',
   }
   configPath: string
@@ -91,6 +92,23 @@ export class PathsManager {
 
     return [...modelsSet]
   }
+  scanTransformersModels() {
+    const dir = this.modelPaths.transformersLLM
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+    }
+    console.log('getting models', dir)
+    const modelsSet = fs
+      .readdirSync(dir)
+      .filter((subDir) => {
+        const fullpath = path.join(dir, subDir)
+        return fs.statSync(fullpath).isDirectory() && fs.existsSync(path.join(fullpath))
+      })
+      .map((subDir) => subDir.replace(/---/g, '/'))
+      .reduce((set, modelName) => set.add(modelName), new Set<string>())
+
+    return [...modelsSet]
+  }
   /**
    * List available ComfyUI models for a given model type (e.g. checkpoints, loras).
    * Returns relative paths from the type directory, using OS path separator (e.g. "SubDir\\model.safetensors").
@@ -127,7 +145,8 @@ export class PathsManager {
 
   scanEmbedding(): Model[] {
     const embeddingModels: Model[] = []
-    llmBackendTypes.forEach((backend) => {
+    const embeddingBackends = llmBackendTypes.filter((backend) => backend !== 'gemmaMTP')
+    embeddingBackends.forEach((backend) => {
       const dir = path.join(this.modelPaths.embedding, backend)
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true })
