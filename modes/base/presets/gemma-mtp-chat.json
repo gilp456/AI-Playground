@@ -1,8 +1,8 @@
 {
-  "name": "Gemma 4 Accelerated Chat",
-  "description": "Official Google Gemma 4 target plus assistant model for faster local text generation.",
+  "name": "Gemma 4 Primary + Assistant Chat",
+  "description": "Official Google Gemma 4 primary model plus assistant model for MTP text generation.",
   "type": "chat",
-  "tags": ["Chat", "Text", "Accelerated"],
+  "tags": ["Chat", "Text", "MTP"],
   "backends": ["gemmaMTP"],
   "preferredModels": {
     "gemmaMTP": "google/gemma-4-E4B-it"

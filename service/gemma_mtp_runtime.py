@@ -167,10 +167,11 @@ def _generation_kwargs(request_json: Dict[str, Any]) -> Dict[str, Any]:
     temperature = request_json.get("temperature", 0)
     do_sample = bool(temperature and temperature > 0)
     kwargs: Dict[str, Any] = {
-        "assistant_model": _loaded.assistant_model,
         "max_new_tokens": int(max_tokens or 256),
         "do_sample": do_sample,
     }
+    if request_json.get("mtp") is not False:
+        kwargs["assistant_model"] = _loaded.assistant_model
     if do_sample:
         kwargs["temperature"] = float(temperature)
         if request_json.get("top_p") is not None:
@@ -227,6 +228,7 @@ def chat_completion(request_json: Dict[str, Any]) -> Dict[str, Any]:
             "completion_tokens": completion_tokens,
             "total_tokens": prompt_tokens + completion_tokens,
         },
+        "mtp": {"enabled": request_json.get("mtp") is not False},
         "timings": {
             "predicted_n": completion_tokens,
             "predicted_ms": elapsed * 1000,

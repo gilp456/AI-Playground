@@ -99,11 +99,11 @@ const items = computed(() => {
         npuSupport: item.npuSupport,
         speculative: item.speculative,
         draftFor,
-        roleLabel: assistantModel ? 'Accelerated' : draftFor ? 'Speed helper' : undefined,
+        roleLabel: assistantModel ? 'Primary' : draftFor ? 'Assistant' : undefined,
         roleDescription: assistantModel
-          ? `Primary chat model. Auto-loads ${modelFileName(assistantModel)} for speed.`
+          ? `Primary chat model. Auto-loads assistant ${modelFileName(assistantModel)} for MTP.`
           : draftFor
-            ? `Helper model for ${modelFileName(draftFor)}. Pick the primary model for chat.`
+            ? `Assistant model for ${modelFileName(draftFor)}. Pick the primary model for chat.`
             : undefined,
       }
     })
