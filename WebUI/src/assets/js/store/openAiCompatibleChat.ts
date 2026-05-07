@@ -70,6 +70,7 @@ export const useOpenAiCompatibleChat = defineStore(
     const textInference = useTextInference()
     const conversations = useConversations()
     const manuallyStopped = ref(false)
+    const lastError = ref<string | null>(null)
 
     const processing = computed(() => {
       // If manually stopped, immediately return false to unblock UI
@@ -479,63 +480,73 @@ export const useOpenAiCompatibleChat = defineStore(
     const fileInput = ref<FileUIPart[]>([])
     const temporarySystemPrompt = ref<string | null>(null)
 
+    function getErrorMessage(error: unknown): string {
+      return error instanceof Error ? error.message : String(error)
+    }
+
     async function generate(question: string) {
-      // 1. Ensure backend and models are ready
-      await textInference.ensureReadyForInference()
-
-      // Reset manual stop flag
-      manuallyStopped.value = false
-
-      // 2. Block if images attached to non-vision model
-      if (fileInput.value.length > 0 && !textInference.modelSupportsVision) {
-        const hasImageFiles = fileInput.value.some((part) => part.mediaType?.startsWith('image/'))
-        if (hasImageFiles) {
-          const errorMessage =
-            'The selected model does not support image inputs. Please remove the images or select a vision-capable model.'
-          toast.error(errorMessage)
-          throw new Error(errorMessage)
-        }
-      }
-
-      // 3. Prepare RAG context (if RAG is enabled)
-      const ragContext = await textInference.prepareRagContext(question)
-      console.log('ragContext', ragContext)
-      temporarySystemPrompt.value = ragContext.systemPrompt
-
-      // 4. Get chat instance and send message
-      const chat = chats[conversations.activeKey]
-      if (!chat) {
-        throw new Error(`No chat instance found for conversation: ${conversations.activeKey}`)
-      }
-
-      messageInput.value = question
+      lastError.value = null
       try {
-        await chat.sendMessage({
-          text: messageInput.value,
-          files: fileInput.value.length > 0 ? fileInput.value : undefined,
-          metadata: {
-            model: textInference.activeModel,
-            timestamp: Date.now(),
-          },
-        })
-      } finally {
-        temporarySystemPrompt.value = null
-      }
+        // 1. Ensure backend and models are ready
+        await textInference.ensureReadyForInference()
 
-      // 5. Store RAG source in message metadata
-      if (ragContext.ragSourceText) {
-        const latestMessage = messages.value?.[messages.value.length - 1]
-        if (latestMessage && latestMessage.role === 'assistant' && latestMessage.metadata) {
-          latestMessage.metadata.ragSource = ragContext.ragSourceText
+        // Reset manual stop flag
+        manuallyStopped.value = false
+
+        // 2. Block if images attached to non-vision model
+        if (fileInput.value.length > 0 && !textInference.modelSupportsVision) {
+          const hasImageFiles = fileInput.value.some((part) => part.mediaType?.startsWith('image/'))
+          if (hasImageFiles) {
+            const errorMessage =
+              'The selected model does not support image inputs. Please remove the images or select a vision-capable model.'
+            toast.error(errorMessage)
+            throw new Error(errorMessage)
+          }
         }
+
+        // 3. Prepare RAG context (if RAG is enabled)
+        const ragContext = await textInference.prepareRagContext(question)
+        console.log('ragContext', ragContext)
+        temporarySystemPrompt.value = ragContext.systemPrompt
+
+        // 4. Get chat instance and send message
+        const chat = chats[conversations.activeKey]
+        if (!chat) {
+          throw new Error(`No chat instance found for conversation: ${conversations.activeKey}`)
+        }
+
+        messageInput.value = question
+        try {
+          await chat.sendMessage({
+            text: messageInput.value,
+            files: fileInput.value.length > 0 ? fileInput.value : undefined,
+            metadata: {
+              model: textInference.activeModel,
+              timestamp: Date.now(),
+            },
+          })
+        } finally {
+          temporarySystemPrompt.value = null
+        }
+
+        // 5. Store RAG source in message metadata
+        if (ragContext.ragSourceText) {
+          const latestMessage = messages.value?.[messages.value.length - 1]
+          if (latestMessage && latestMessage.role === 'assistant' && latestMessage.metadata) {
+            latestMessage.metadata.ragSource = ragContext.ragSourceText
+          }
+        }
+
+        // 6. Persist conversation (sanitize base64 image parts to aipg-media)
+        conversations.updateConversation(messages.value, conversations.activeKey)
+
+        // 7. Clear inputs
+        messageInput.value = ''
+        fileInput.value = []
+      } catch (error) {
+        lastError.value = getErrorMessage(error)
+        throw error
       }
-
-      // 6. Persist conversation (sanitize base64 image parts to aipg-media)
-      conversations.updateConversation(messages.value, conversations.activeKey)
-
-      // 7. Clear inputs
-      messageInput.value = ''
-      fileInput.value = []
     }
 
     async function stop() {
@@ -564,7 +575,7 @@ export const useOpenAiCompatibleChat = defineStore(
       conversations.updateConversation(chat.messages, conversations.activeKey)
     }
 
-    const error = computed(() => chats[conversations.activeKey]?.error?.message)
+    const error = computed(() => lastError.value ?? chats[conversations.activeKey]?.error?.message)
 
     return {
       chat: chats[conversations.activeKey],

@@ -1,4 +1,5 @@
 import gc
+import json
 import os
 import threading
 import time
@@ -7,7 +8,72 @@ from dataclasses import dataclass
 from typing import Any, Dict, Iterable, List, Optional
 
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoProcessor, TextIteratorStreamer
+
+
+_GEMMA4_PLE_TENSOR = "model.language_model.embed_tokens_per_layer.weight"
+_SPLIT_EMBEDDING_CHUNK_DIM = 2048
+
+
+class _SplitScaledWordEmbedding(nn.Module):
+    def __init__(
+        self,
+        num_embeddings: int,
+        embedding_dim: int,
+        padding_idx: Optional[int],
+        embed_scale: float,
+    ):
+        super().__init__()
+        self.num_embeddings = num_embeddings
+        self.embedding_dim = embedding_dim
+        self.padding_idx = padding_idx
+        self.scalar_embed_scale = float(embed_scale)
+        self.register_buffer("embed_scale", torch.tensor(self.scalar_embed_scale), persistent=False)
+        self.chunks = nn.ParameterList()
+
+    @classmethod
+    def from_embedding(
+        cls,
+        source_embedding: Any,
+        chunk_dim: int,
+        device: str,
+        dtype: torch.dtype,
+    ) -> "_SplitScaledWordEmbedding":
+        split = cls(
+            num_embeddings=source_embedding.num_embeddings,
+            embedding_dim=source_embedding.embedding_dim,
+            padding_idx=source_embedding.padding_idx,
+            embed_scale=getattr(source_embedding, "scalar_embed_scale", 1.0),
+        )
+        split.embed_scale = split.embed_scale.to(device=device)
+
+        if getattr(source_embedding.weight, "is_meta", False):
+            return split
+
+        weight = source_embedding.weight.detach()
+        for start in range(0, split.embedding_dim, chunk_dim):
+            split.append_chunk(weight[:, start : start + chunk_dim].to(device=device, dtype=dtype))
+        return split
+
+    @property
+    def weight(self) -> torch.Tensor:
+        if not self.chunks:
+            return torch.empty(0, device=self.embed_scale.device, dtype=self.embed_scale.dtype)
+        return self.chunks[0]
+
+    def append_chunk(self, chunk: torch.Tensor) -> None:
+        self.chunks.append(nn.Parameter(chunk, requires_grad=False))
+
+    def forward(self, input_ids: torch.Tensor) -> torch.Tensor:
+        if not self.chunks:
+            raise RuntimeError("Split Gemma embedding has not been loaded")
+
+        device = self.chunks[0].device
+        input_ids = input_ids.to(device)
+        parts = [F.embedding(input_ids, chunk, padding_idx=self.padding_idx) for chunk in self.chunks]
+        return torch.cat(parts, dim=-1) * self.embed_scale.to(device=device, dtype=parts[0].dtype)
 
 
 @dataclass
@@ -63,6 +129,91 @@ def _unload_current() -> None:
         torch.xpu.empty_cache()
 
 
+def _checkpoint_file_for_tensor(model_path: str, tensor_name: str) -> str:
+    index_path = os.path.join(model_path, "model.safetensors.index.json")
+    if os.path.isfile(index_path):
+        with open(index_path, "r", encoding="utf-8") as index_file:
+            weight_map = json.load(index_file).get("weight_map", {})
+        shard_name = weight_map.get(tensor_name)
+        if not shard_name:
+            raise FileNotFoundError(f"Tensor {tensor_name} not found in {index_path}")
+        return os.path.join(model_path, shard_name)
+
+    safetensor_path = os.path.join(model_path, "model.safetensors")
+    if os.path.isfile(safetensor_path):
+        return safetensor_path
+
+    raise FileNotFoundError(f"No safetensors checkpoint found in {model_path}")
+
+
+def _load_split_embedding_chunks(
+    split_embedding: _SplitScaledWordEmbedding,
+    model_path: str,
+    tensor_name: str,
+    device: str,
+    dtype: torch.dtype,
+    chunk_dim: int = _SPLIT_EMBEDDING_CHUNK_DIM,
+) -> None:
+    from safetensors import safe_open
+
+    checkpoint_file = _checkpoint_file_for_tensor(model_path, tensor_name)
+    with safe_open(checkpoint_file, framework="pt", device="cpu") as checkpoint:
+        tensor_slice = checkpoint.get_slice(tensor_name)
+        shape = tensor_slice.get_shape()
+        if len(shape) != 2:
+            raise ValueError(f"Expected 2D Gemma embedding tensor, got shape {shape}")
+
+        for start in range(0, shape[1], chunk_dim):
+            chunk = tensor_slice[:, start : start + chunk_dim].to(device=device, dtype=dtype)
+            split_embedding.append_chunk(chunk)
+
+
+def _load_gemma_target_model(model_path: str, device: str, dtype: torch.dtype) -> Any:
+    if not device.startswith("xpu"):
+        return AutoModelForCausalLM.from_pretrained(
+            model_path,
+            dtype=dtype,
+            local_files_only=True,
+        ).to(device)
+
+    from accelerate import init_empty_weights
+    from accelerate.utils import load_checkpoint_in_model
+    from transformers import AutoConfig
+
+    config = AutoConfig.from_pretrained(model_path, local_files_only=True)
+    with init_empty_weights():
+        model = AutoModelForCausalLM.from_config(config)
+
+    language_model = getattr(getattr(model, "model", None), "language_model", None)
+    source_embedding = getattr(language_model, "embed_tokens_per_layer", None)
+    if source_embedding is None:
+        return AutoModelForCausalLM.from_pretrained(
+            model_path,
+            dtype=dtype,
+            local_files_only=True,
+        ).to(device)
+
+    split_embedding = _SplitScaledWordEmbedding.from_embedding(
+        source_embedding,
+        chunk_dim=_SPLIT_EMBEDDING_CHUNK_DIM,
+        device=device,
+        dtype=dtype,
+    )
+    language_model.embed_tokens_per_layer = split_embedding
+    model.tie_weights()
+
+    load_checkpoint_in_model(
+        model,
+        model_path,
+        device_map={_GEMMA4_PLE_TENSOR: "cpu", "": device},
+        dtype=dtype,
+        strict=False,
+    )
+    model.tie_weights()
+    _load_split_embedding_chunks(split_embedding, model_path, _GEMMA4_PLE_TENSOR, device, dtype)
+    return model
+
+
 def load_model_pair(
     model_id: str,
     assistant_model_id: str,
@@ -92,11 +243,7 @@ def load_model_pair(
 
     dtype = _dtype_for_device(device)
     processor = AutoProcessor.from_pretrained(model_path, local_files_only=True)
-    target_model = AutoModelForCausalLM.from_pretrained(
-        model_path,
-        dtype=dtype,
-        local_files_only=True,
-    ).to(device)
+    target_model = _load_gemma_target_model(model_path, device, dtype)
     assistant_model = AutoModelForCausalLM.from_pretrained(
         assistant_model_path,
         dtype=dtype,

@@ -387,6 +387,8 @@ async function handlePromptSubmit(prompt: string) {
   } catch (error) {
     // Reset state on any error (including download cancellation)
     promptStore.promptSubmitted = false
+    const message = error instanceof Error ? error.message : String(error)
+    toast.error(message)
     console.error('Error during text inference:', error)
   }
 }

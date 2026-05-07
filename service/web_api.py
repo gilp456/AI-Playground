@@ -83,14 +83,18 @@ try:
         if not model_id or not assistant_model_id or not model_path:
             return jsonify({"error": "model, assistant_model, and model_path are required"}), 400
 
-        loaded = gemma_mtp_runtime.load_model_pair(
-            model_id=model_id,
-            assistant_model_id=assistant_model_id,
-            model_root=model_path,
-            requested_device=body.get("device"),
-            num_assistant_tokens=int(body.get("num_assistant_tokens") or 4),
-        )
-        return jsonify(loaded)
+        try:
+            loaded = gemma_mtp_runtime.load_model_pair(
+                model_id=model_id,
+                assistant_model_id=assistant_model_id,
+                model_root=model_path,
+                requested_device=body.get("device"),
+                num_assistant_tokens=int(body.get("num_assistant_tokens") or 4),
+            )
+            return jsonify(loaded)
+        except Exception as ex:
+            logging.exception("Failed to load Gemma MTP model pair")
+            return jsonify({"error": {"message": str(ex), "type": "server_error"}}), 500
 
     @app.get("/api/gemmaMtp/loaded")
     def get_loaded_gemma_mtp():
@@ -104,7 +108,11 @@ try:
                 stream_with_context(gemma_mtp_runtime.chat_completion_stream(body)),
                 content_type="text/event-stream",
             )
-        return jsonify(gemma_mtp_runtime.chat_completion(body))
+        try:
+            return jsonify(gemma_mtp_runtime.chat_completion(body))
+        except Exception as ex:
+            logging.exception("Gemma MTP chat completion failed")
+            return jsonify({"error": {"message": str(ex), "type": "server_error"}}), 500
 
     @app.get("/api/applicationExit")
     def applicationExit():
