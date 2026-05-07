@@ -2,6 +2,8 @@
   "name": "Gemma 4 Primary + Assistant Chat",
   "description": "Official Google Gemma 4 primary model plus assistant model for MTP text generation.",
   "type": "chat",
+  "category": "chat",
+  "displayPriority": 95,
   "tags": ["Chat", "Text", "MTP"],
   "backends": ["gemmaMTP"],
   "preferredModels": {
