@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed, watch } from 'vue'
 import z from 'zod'
 import { demoAwareStorage } from '../demoAwareStorage'
+import { cloneBackendRuntimeOptionsForIpc } from './backendRuntimeOptions'
 
 const backends = ['openvino-backend', 'ai-backend', 'comfyui-backend', 'llamacpp-backend'] as const
 
@@ -372,12 +373,13 @@ export const useBackendServices = defineStore(
       runtimeOptions?: BackendRuntimeOptions,
     ): Promise<void> {
       try {
+        const ipcRuntimeOptions = cloneBackendRuntimeOptionsForIpc(runtimeOptions)
         const result = await window.electronAPI.ensureBackendReadiness(
           serviceName,
           llmModelName,
           embeddingModelName,
           contextSize,
-          runtimeOptions,
+          ipcRuntimeOptions,
         )
         if (!result.success) {
           throw new Error(result.error || 'Failed to ensure backend readiness')
