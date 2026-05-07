@@ -396,7 +396,7 @@ export const useTextInference = defineStore(
           backend: backendName,
         },
       ]
-      if (modelMetaData?.mmproj) {
+      if (modelMetaData?.mmproj && !modelMetaData?.speculative) {
         checkList.push({
           repo_id: modelMetaData.mmproj,
           type: backendToAipgModelType[backend.value],
