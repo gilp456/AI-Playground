@@ -131,6 +131,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       runtimeOptions,
     ),
   ensureComfyUIBackendRunning: () => ipcRenderer.invoke('ensureComfyUIBackendRunning'),
+  unloadGemmaMtpModel: () => ipcRenderer.invoke('unloadGemmaMtpModel'),
   startTranscriptionServer: (modelName: string) =>
     ipcRenderer.invoke('startTranscriptionServer', modelName),
   stopTranscriptionServer: () => ipcRenderer.invoke('stopTranscriptionServer'),

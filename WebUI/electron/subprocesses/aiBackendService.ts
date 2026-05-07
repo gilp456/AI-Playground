@@ -117,6 +117,24 @@ export class AiBackendService extends LongLivedPythonApiService {
     this.currentMtpDevice = selectedDevice
   }
 
+  async unloadGemmaMtp(): Promise<{ success: boolean; error?: string }> {
+    if (this.currentStatus !== 'running') {
+      this.currentMtpModel = null
+      this.currentMtpAssistantModel = null
+      this.currentMtpDevice = null
+      return { success: true }
+    }
+
+    const response = await fetch(`${this.baseUrl}/api/gemmaMtp/unload`, { method: 'POST' })
+    if (!response.ok) {
+      return { success: false, error: await response.text() }
+    }
+    this.currentMtpModel = null
+    this.currentMtpAssistantModel = null
+    this.currentMtpDevice = null
+    return { success: true }
+  }
+
   async *set_up(): AsyncIterable<SetupProgress> {
     this.setStatus('installing')
     this.appLogger.info('setting up service', this.name)

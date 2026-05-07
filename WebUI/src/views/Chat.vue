@@ -24,7 +24,22 @@
       class="absolute inset-0 flex justify-center items-center bg-background/30 z-10"
       v-if="textInference.isPreparingBackend"
     >
-      <loading-bar :text="textInference.preparationMessage" class="w-512px"></loading-bar>
+      <div class="w-[min(42rem,calc(100vw-3rem))] rounded-md border border-border bg-background/90 px-6 py-5 shadow-lg">
+        <p class="text-lg font-semibold text-foreground">{{ textInference.preparationMessage }}</p>
+        <div class="mt-4 grid gap-2 text-sm text-muted-foreground">
+          <div
+            v-for="detail in textInference.preparationDetails"
+            :key="detail"
+            class="flex items-start gap-2"
+          >
+            <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary"></span>
+            <span>{{ detail }}</span>
+          </div>
+        </div>
+        <p class="mt-4 text-xs text-muted-foreground">
+          Loading can take a while as weights are placed on the selected device.
+        </p>
+      </div>
     </div>
 
     <!-- eslint-disable vue/require-v-for-key -->
@@ -290,7 +305,6 @@ import * as toast from '@/assets/js/toast.ts'
 import { useI18N } from '@/assets/js/store/i18n.ts'
 import { useTextInference } from '@/assets/js/store/textInference.ts'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import LoadingBar from '@/components/LoadingBar.vue'
 import { usePromptStore } from '@/assets/js/store/promptArea.ts'
 import { useOpenAiCompatibleChat } from '@/assets/js/store/openAiCompatibleChat'
 import ChatWorkflowResult from '@/components/ChatWorkflowResult.vue'

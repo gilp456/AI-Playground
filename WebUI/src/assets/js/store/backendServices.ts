@@ -342,6 +342,10 @@ export const useBackendServices = defineStore(
       return window.electronAPI.stopService(serviceName)
     }
 
+    async function unloadGemmaMtpModel(): Promise<{ success: boolean; error?: string }> {
+      return window.electronAPI.unloadGemmaMtpModel()
+    }
+
     const lastUsedBackend = ref<BackendServiceName | null>(null)
 
     function updateLastUsedBackend(currentInferenceBackend: BackendServiceName) {
@@ -505,6 +509,7 @@ export const useBackendServices = defineStore(
       updateServiceSettings,
       startService,
       stopService,
+      unloadGemmaMtpModel,
       uninstallService,
       detectDevices,
       selectDevice,

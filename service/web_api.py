@@ -100,6 +100,14 @@ try:
     def get_loaded_gemma_mtp():
         return jsonify(gemma_mtp_runtime.get_loaded_info())
 
+    @app.post("/api/gemmaMtp/unload")
+    def unload_gemma_mtp():
+        try:
+            return jsonify(gemma_mtp_runtime.unload_model())
+        except Exception as ex:
+            logging.exception("Failed to unload Gemma MTP model pair")
+            return jsonify({"error": {"message": str(ex), "type": "server_error"}}), 500
+
     @app.post("/v1/chat/completions")
     def chat_completions():
         body = request.get_json() or {}

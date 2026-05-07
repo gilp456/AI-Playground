@@ -41,6 +41,15 @@
         >
           {{ languages.COM_ADD + ' ' + languages.MODEL }}
         </Button>
+        <Button
+          v-if="textInference.backend === 'gemmaMTP'"
+          variant="secondary"
+          class="self-start w-auto px-3 py-1.5 rounded text-sm"
+          :disabled="ejectingModel"
+          @click="handleEjectModel"
+        >
+          {{ ejectingModel ? 'Unloading Model...' : 'Unload Model' }}
+        </Button>
 
         <!-- Add Documents button - only shown when RAG is enabled -->
         <Button
@@ -206,6 +215,7 @@ import { useProductMode } from '@/assets/js/store/productMode'
 const showModelRequestDialog = ref(false)
 const showUploader = ref(false)
 const processing = ref(false)
+const ejectingModel = ref(false)
 const i18nState = useI18N().state
 const textInference = useTextInference()
 const presetsStore = usePresets()
@@ -252,6 +262,19 @@ const availableBackendItems = computed(() => {
 // Handle backend change from dropdown
 function handleBackendChange(newBackend: string) {
   textInference.backend = newBackend as LlmBackend
+}
+
+async function handleEjectModel() {
+  ejectingModel.value = true
+  try {
+    await textInference.unloadActiveModel()
+    toast.success('Gemma MTP model unloaded')
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error)
+    toast.error(errorMessage)
+  } finally {
+    ejectingModel.value = false
+  }
 }
 
 async function handlePresetChange(presetName: string) {

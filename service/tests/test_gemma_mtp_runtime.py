@@ -81,6 +81,16 @@ class TestGemmaMtpRuntime(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.get_json()["error"]["message"], "load failed")
 
+    def test_gemma_mtp_unload_endpoint_releases_loaded_model(self):
+        from web_api import app
+
+        with patch("gemma_mtp_runtime.unload_model", return_value={"loaded": False}) as unload:
+            response = app.test_client().post("/api/gemmaMtp/unload")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.get_json(), {"loaded": False})
+        unload.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -319,6 +319,23 @@ export const useTextInference = defineStore(
       }
     })
 
+    const preparationDetails = computed(() => {
+      if (!backendReadinessState.isPreparingBackend) return []
+      const details = [
+        `Backend: ${textInferenceBackendDisplayName[backend.value]}`,
+        `Primary model: ${activeModel.value ?? 'None selected'}`,
+      ]
+      const assistantModel = activeSpeculative.value?.assistantModel
+      if (assistantModel) {
+        details.push(`Assistant model: ${assistantModel}`)
+        details.push(`MTP assistant tokens: ${activeSpeculative.value?.numAssistantTokens ?? 4}`)
+      }
+      const deviceId = getCurrentDeviceId()
+      if (deviceId) details.push(`Device: ${deviceId}`)
+      if (contextSizeSettingSupported.value) details.push(`Context size: ${contextSize.value}`)
+      return details
+    })
+
     const metricsEnabled = ref(true)
     const aipgToolsEnabled = ref(true)
     const mcpToolsEnabled = ref(true)
@@ -870,6 +887,18 @@ export const useTextInference = defineStore(
       }
     }
 
+    async function unloadActiveModel(): Promise<void> {
+      if (backend.value !== 'gemmaMTP') {
+        throw new Error('Model eject is currently available for Gemma MTP models only')
+      }
+      const result = await backendServices.unloadGemmaMtpModel()
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to eject Gemma MTP model')
+      }
+      backendReadinessState.lastUsedModel.gemmaMTP = null
+      backendReadinessState.lastUsedContextSize.gemmaMTP = null
+    }
+
     async function checkModelAvailability() {
       // ToDo: the path for embedding downloads must be corrected and BAAI/bge-large-zh-v1.5 was accidentally downloaded to the wrong place
       return new Promise<void>(async (resolve, reject) => {
@@ -1351,9 +1380,11 @@ export const useTextInference = defineStore(
       needsBackendPreparation,
       preparationReason,
       preparationMessage,
+      preparationDetails,
       startBackendPreparation,
       completeBackendPreparation,
       updateLastUsedConfig,
+      unloadActiveModel,
       prepareBackendIfNeeded,
       ensureReadyForInference,
 

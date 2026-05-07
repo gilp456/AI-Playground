@@ -129,6 +129,18 @@
     }
   },
   {
+    "name": "google/gemma-4-E2B-it",
+    "type": "gemmaMTP",
+    "supportsToolCalling": false,
+    "supportsVision": false,
+    "supportsReasoning": false,
+    "maxContextSize": 131072,
+    "speculative": {
+      "assistantModel": "google/gemma-4-E2B-it-assistant",
+      "numAssistantTokens": 4
+    }
+  },
+  {
     "name": "google/gemma-4-E4B-it",
     "type": "gemmaMTP",
     "supportsToolCalling": false,

@@ -1366,6 +1366,24 @@ function initEventHandle() {
     }
   })
 
+  ipcMain.handle('unloadGemmaMtpModel', async () => {
+    const service = serviceRegistry?.getService('ai-backend')
+    if (
+      !service ||
+      !('unloadGemmaMtp' in service) ||
+      typeof service.unloadGemmaMtp !== 'function'
+    ) {
+      return { success: false, error: 'Gemma MTP backend service not found' }
+    }
+    try {
+      return await service.unloadGemmaMtp()
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      appLogger.error(`Failed to unload Gemma MTP model: ${errorMessage}`, 'electron-backend')
+      return { success: false, error: errorMessage }
+    }
+  })
+
   ipcMain.handle(
     'getEmbeddingServerUrl',
     async (_event: IpcMainInvokeEvent, serviceName: string) => {

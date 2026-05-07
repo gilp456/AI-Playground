@@ -276,6 +276,7 @@ type electronAPI = {
     error?: string
     starting?: boolean
   }>
+  unloadGemmaMtpModel(): Promise<{ success: boolean; error?: string }>
   startTranscriptionServer(modelName: string): Promise<{ success: boolean; error?: string }>
   stopTranscriptionServer(): Promise<{ success: boolean; error?: string }>
   getTranscriptionServerUrl(): Promise<{ success: boolean; url?: string; error?: string }>

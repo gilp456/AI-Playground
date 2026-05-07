@@ -129,6 +129,11 @@ def _unload_current() -> None:
         torch.xpu.empty_cache()
 
 
+def unload_model() -> Dict[str, Any]:
+    _unload_current()
+    return get_loaded_info()
+
+
 def _checkpoint_file_for_tensor(model_path: str, tensor_name: str) -> str:
     index_path = os.path.join(model_path, "model.safetensors.index.json")
     if os.path.isfile(index_path):
