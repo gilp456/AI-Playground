@@ -15,9 +15,9 @@ export function buildLlamaCppSpeculativeArgs(
 ): string[] {
   if (!options?.assistantModel) return []
 
-  const args = ['--spec-draft-model', resolveModelPath(options.assistantModel)]
+  const args = ['--model-draft', resolveModelPath(options.assistantModel)]
   if (options.numAssistantTokens !== undefined) {
-    args.push('--spec-draft-n-max', options.numAssistantTokens.toString())
+    args.push('--draft-max', options.numAssistantTokens.toString())
   }
   return args
 }

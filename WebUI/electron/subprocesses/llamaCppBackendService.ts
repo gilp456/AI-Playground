@@ -596,10 +596,15 @@ export class LlamaCppBackendService implements ApiService {
         (file) => file.startsWith('mmproj') && file.endsWith('.gguf'),
       )
       const mmprojFile = mmprojFiles.at(0)
-      if (mmprojFile) {
+      if (mmprojFile && !speculative) {
         const mmprojPath = path.join(modelFolder, mmprojFile)
         args.push('--mmproj', mmprojPath)
         this.appLogger.info(`Using mmproj file ${mmprojFile} for model ${modelRepoId}`, this.name)
+      } else if (mmprojFile && speculative) {
+        this.appLogger.info(
+          `Skipping mmproj file ${mmprojFile} because speculative decoding is enabled for ${modelRepoId}`,
+          this.name,
+        )
       }
 
       const childProcess = spawn(this.llamaCppExePath, args, {

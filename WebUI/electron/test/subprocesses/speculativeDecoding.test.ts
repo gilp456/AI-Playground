@@ -15,9 +15,9 @@ describe('speculativeDecoding', () => {
     )
 
     expect(args).toEqual([
-      '--spec-draft-model',
+      '--model-draft',
       'C:/models/google---gemma-4-E4B-it-assistant-GGUF---gemma-4-E4B-it-assistant-Q8_0.gguf',
-      '--spec-draft-n-max',
+      '--draft-max',
       '5',
     ])
   })
@@ -30,7 +30,7 @@ describe('speculativeDecoding', () => {
       (repoId) => repoId,
     )
 
-    expect(args).toEqual(['--spec-draft-model', 'draft/repo/model.gguf'])
+    expect(args).toEqual(['--model-draft', 'draft/repo/model.gguf'])
   })
 
   it('uses a model-local OVMS config for speculative OpenVINO models', () => {
