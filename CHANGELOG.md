@@ -2,6 +2,23 @@
 
 All notable local development changes are documented in this file.
 
+## 3.1.10-alpha.0-local - 2026-05-07
+
+### Added
+
+- Added an in-app MTP Acceleration toggle for the Gemma MTP backend so users can compare the same model with MTP on and off from Chat Settings.
+- Added visible chat telemetry badges for generated tokens, tokens/sec, first-token timing, and MTP on/off state.
+- Added final streaming usage and timing telemetry from the Gemma MTP backend so the app can display performance after streamed chat responses.
+
+### Changed
+
+- Enabled chat metrics by default when a preset has no saved preference, making performance telemetry visible without requiring the user to discover the Metrics checkbox first.
+- Bumped the local development app version to `3.1.10-alpha.0`.
+
+### Notes
+
+- This replaces the PowerShell-only benchmark workflow for normal users: load the Gemma MTP model in AI Playground, toggle MTP Acceleration, send the same prompt, and compare the tokens/sec badge beneath the assistant response.
+
 ## 3.1.9-alpha.0-local - 2026-05-07
 
 ### Changed

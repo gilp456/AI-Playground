@@ -14,7 +14,7 @@ import {
   UIMessage,
 } from 'ai'
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible'
-import { useTextInference } from './textInference'
+import { type LlmBackend, useTextInference } from './textInference'
 import { useConversations } from './conversations'
 import { aipgTools } from '../tools/tools'
 import z from 'zod'
@@ -51,6 +51,11 @@ const LlamaCppRawValueSchema = z.object({
     })
     .optional(),
   timings: LlamaCppRawValueTimingsSchema.optional(),
+  mtp: z
+    .object({
+      enabled: z.boolean(),
+    })
+    .optional(),
 })
 
 export type AipgMetadata = {
@@ -58,8 +63,21 @@ export type AipgMetadata = {
   timestamp?: number
   conversationTitle?: string
   timings?: z.infer<typeof LlamaCppRawValueTimingsSchema>
+  mtp?: { enabled: boolean }
   ragSource?: string
   usage?: LanguageModelUsage
+}
+
+export function withGemmaMtpRequestFlag(
+  body: string,
+  backend: LlmBackend,
+  mtpEnabled: boolean,
+): string {
+  if (backend !== 'gemmaMTP') return body
+  return JSON.stringify({
+    ...JSON.parse(body),
+    mtp: mtpEnabled,
+  })
 }
 
 export type AipgUiMessage = UIMessage<AipgMetadata, UIDataTypes, AipgTools>
@@ -103,6 +121,13 @@ export const useOpenAiCompatibleChat = defineStore(
               ...body,
               num_assistant_tokens: activeSpeculative.numAssistantTokens,
             })
+          }
+          if (init?.body) {
+            init.body = withGemmaMtpRequestFlag(
+              init.body.toString(),
+              textInference.backend,
+              textInference.gemmaMtpEnabled,
+            )
           }
           return globalThis.fetch(requestUrl.toString(), init)
         },
@@ -428,6 +453,10 @@ export const useOpenAiCompatibleChat = defineStore(
             model: textInference.activeModel,
             timestamp: Date.now(),
             timings,
+            mtp:
+              textInference.backend === 'gemmaMTP'
+                ? { enabled: textInference.gemmaMtpEnabled }
+                : undefined,
             usage: effectiveUsage ?? usage,
           }
         },

@@ -28,6 +28,10 @@ export function isGemmaMtpSelectionLoaded(snapshot: GemmaMtpReadinessSnapshot): 
   )
 }
 
+export function metricsEnabledFromSavedSetting(savedSetting: unknown): boolean {
+  return savedSetting === undefined ? true : Boolean(savedSetting)
+}
+
 export const backendToService = {
   llamaCPP: 'llamacpp-backend',
   openVINO: 'openvino-backend',
@@ -358,6 +362,7 @@ export const useTextInference = defineStore(
     })
 
     const metricsEnabled = ref(true)
+    const gemmaMtpEnabled = ref(true)
     const aipgToolsEnabled = ref(true)
     const mcpToolsEnabled = ref(true)
     const maxTokens = ref<number>(1024)
@@ -1230,12 +1235,13 @@ export const useTextInference = defineStore(
       }
 
       // Load metrics enabled
-      if (savedSettings.metricsEnabled !== undefined) {
-        metricsEnabled.value = savedSettings.metricsEnabled as boolean
-      } else {
-        // Set default value when no saved value exists
-        metricsEnabled.value = false
-      }
+      metricsEnabled.value = metricsEnabledFromSavedSetting(savedSettings.metricsEnabled)
+
+      // Load Gemma MTP acceleration toggle
+      gemmaMtpEnabled.value =
+        savedSettings.gemmaMtpEnabled === undefined
+          ? true
+          : Boolean(savedSettings.gemmaMtpEnabled)
 
       // Load tools enabled (only when user can modify it)
       const defaultToolsEnabled = getDefaultToolsEnabled(preset)
@@ -1284,6 +1290,7 @@ export const useTextInference = defineStore(
         metricsEnabled,
         aipgToolsEnabled,
         mcpToolsEnabled,
+        gemmaMtpEnabled,
       ],
       () => {
         // Don't save if we're loading settings (prevents overwriting during preset switch)
@@ -1305,6 +1312,7 @@ export const useTextInference = defineStore(
           temperature: temperature.value,
           systemPrompt: systemPrompt.value,
           metricsEnabled: metricsEnabled.value,
+          gemmaMtpEnabled: gemmaMtpEnabled.value,
           aipgToolsEnabled: aipgToolsEnabled.value,
           mcpToolsEnabled: mcpToolsEnabled.value,
         }
@@ -1373,6 +1381,7 @@ export const useTextInference = defineStore(
       llmEmbeddingModels,
       currentBackendUrl,
       metricsEnabled,
+      gemmaMtpEnabled,
       aipgToolsEnabled,
       mcpToolsEnabled,
       maxTokens,

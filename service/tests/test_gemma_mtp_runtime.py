@@ -2,6 +2,7 @@ import os
 import sys
 import unittest
 import logging
+import json
 from unittest.mock import patch
 
 os.environ.setdefault("ONEAPI_DEVICE_SELECTOR", "level_zero:999")
@@ -90,6 +91,24 @@ class TestGemmaMtpRuntime(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_json(), {"loaded": False})
         unload.assert_called_once()
+
+    def test_stream_terminal_chunk_reports_usage_timings_and_mtp_state(self):
+        import gemma_mtp_runtime
+
+        terminal_chunk = gemma_mtp_runtime._json_chunk(
+            "chatcmpl-test",
+            "",
+            finish_reason="stop",
+            usage={"prompt_tokens": 3, "completion_tokens": 5, "total_tokens": 8},
+            timings={"predicted_n": 5, "predicted_ms": 250.0, "predicted_per_second": 20.0},
+            mtp_enabled=False,
+        )
+
+        payload = json.loads(terminal_chunk)
+        self.assertEqual(payload["choices"][0]["finish_reason"], "stop")
+        self.assertEqual(payload["usage"]["completion_tokens"], 5)
+        self.assertEqual(payload["timings"]["predicted_per_second"], 20.0)
+        self.assertEqual(payload["mtp"], {"enabled": False})
 
 
 if __name__ == "__main__":

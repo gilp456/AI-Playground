@@ -101,6 +101,17 @@
             @click="() => (textInference.metricsEnabled = !textInference.metricsEnabled)"
           />
         </div>
+        <div
+          v-if="textInference.backend === 'gemmaMTP'"
+          class="grid grid-cols-[120px_1fr] items-center gap-4"
+        >
+          <Label class="whitespace-nowrap">MTP Acceleration</Label>
+          <Checkbox
+            id="gemma-mtp"
+            :model-value="textInference.gemmaMtpEnabled"
+            @click="() => (textInference.gemmaMtpEnabled = !textInference.gemmaMtpEnabled)"
+          />
+        </div>
         <!-- Built-in Tools toggle - only shown when preset has showTools enabled -->
         <div
           v-if="showTools && textInference.modelSupportsToolCalling"

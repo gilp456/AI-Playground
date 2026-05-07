@@ -362,6 +362,7 @@ def chat_completion(request_json: Dict[str, Any]) -> Dict[str, Any]:
     )
     elapsed = time.perf_counter() - start
     completion_tokens = int(outputs.shape[1] - prompt_tokens)
+    predicted_per_second = completion_tokens / elapsed if elapsed > 0 else 0
 
     return {
         "id": f"chatcmpl-{uuid.uuid4()}",
@@ -382,9 +383,17 @@ def chat_completion(request_json: Dict[str, Any]) -> Dict[str, Any]:
         },
         "mtp": {"enabled": request_json.get("mtp") is not False},
         "timings": {
+            "cache_n": 0,
+            "prompt_n": prompt_tokens,
+            "prompt_ms": 0,
+            "prompt_per_token_ms": 0,
+            "prompt_per_second": 0,
             "predicted_n": completion_tokens,
             "predicted_ms": elapsed * 1000,
-            "predicted_per_second": completion_tokens / elapsed if elapsed > 0 else 0,
+            "predicted_per_token_ms": (elapsed * 1000) / completion_tokens
+            if completion_tokens > 0
+            else 0,
+            "predicted_per_second": predicted_per_second,
         },
     }
 
@@ -397,7 +406,9 @@ def chat_completion_stream(request_json: Dict[str, Any]) -> Iterable[str]:
     if not isinstance(messages, list):
         raise ValueError("Expected messages list")
 
+    start = time.perf_counter()
     inputs = _inputs_for_messages(messages)
+    prompt_tokens = int(inputs["input_ids"].shape[1])
     streamer = TextIteratorStreamer(
         _loaded.processor.tokenizer,
         skip_prompt=True,
@@ -405,6 +416,7 @@ def chat_completion_stream(request_json: Dict[str, Any]) -> Iterable[str]:
     )
     kwargs = {**inputs, **_generation_kwargs(request_json), "streamer": streamer}
     completion_id = f"chatcmpl-{uuid.uuid4()}"
+    completion_text_parts: List[str] = []
 
     def run_generate():
         with torch.inference_mode():
@@ -415,20 +427,76 @@ def chat_completion_stream(request_json: Dict[str, Any]) -> Iterable[str]:
     for text in streamer:
         if not text:
             continue
+        completion_text_parts.append(text)
         yield "data: " + _json_chunk(completion_id, text) + "\n\n"
     thread.join()
+    elapsed = time.perf_counter() - start
+    completion_text = "".join(completion_text_parts)
+    completion_tokens = len(
+        _loaded.processor.tokenizer(
+            completion_text,
+            add_special_tokens=False,
+        )["input_ids"]
+    )
+    predicted_per_second = completion_tokens / elapsed if elapsed > 0 else 0
+    yield (
+        "data: "
+        + _json_chunk(
+            completion_id,
+            "",
+            finish_reason="stop",
+            usage={
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            },
+            timings={
+                "cache_n": 0,
+                "prompt_n": prompt_tokens,
+                "prompt_ms": 0,
+                "prompt_per_token_ms": 0,
+                "prompt_per_second": 0,
+                "predicted_n": completion_tokens,
+                "predicted_ms": elapsed * 1000,
+                "predicted_per_token_ms": (elapsed * 1000) / completion_tokens
+                if completion_tokens > 0
+                else 0,
+                "predicted_per_second": predicted_per_second,
+            },
+            mtp_enabled=request_json.get("mtp") is not False,
+        )
+        + "\n\n"
+    )
     yield "data: [DONE]\n\n"
 
 
-def _json_chunk(completion_id: str, text: str) -> str:
+def _json_chunk(
+    completion_id: str,
+    text: str,
+    finish_reason: Optional[str] = None,
+    usage: Optional[Dict[str, int]] = None,
+    timings: Optional[Dict[str, float]] = None,
+    mtp_enabled: Optional[bool] = None,
+) -> str:
     import json
 
-    return json.dumps(
-        {
-            "id": completion_id,
-            "object": "chat.completion.chunk",
-            "created": int(time.time()),
-            "model": _loaded.model_id if _loaded else "",
-            "choices": [{"index": 0, "delta": {"content": text}, "finish_reason": None}],
-        }
-    )
+    payload = {
+        "id": completion_id,
+        "object": "chat.completion.chunk",
+        "created": int(time.time()),
+        "model": _loaded.model_id if _loaded else "",
+        "choices": [
+            {
+                "index": 0,
+                "delta": {"content": text} if text else {},
+                "finish_reason": finish_reason,
+            }
+        ],
+    }
+    if usage is not None:
+        payload["usage"] = usage
+    if timings is not None:
+        payload["timings"] = timings
+    if mtp_enabled is not None:
+        payload["mtp"] = {"enabled": mtp_enabled}
+    return json.dumps(payload)

@@ -281,17 +281,24 @@
             </div>
             <div
               v-if="textInference.metricsEnabled && message.metadata?.timings"
-              class="metrics-info text-xs text-muted-foreground"
+              class="metrics-info mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
             >
-              <span class="mr-2">{{ message.metadata?.timings.predicted_n }} Tokens</span>
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
-                >{{ message.metadata?.timings.predicted_per_second.toFixed(2) }} Tokens/s</span
+              <span class="rounded border border-border px-2 py-1">
+                {{ message.metadata?.timings.predicted_n }} tokens
+              </span>
+              <span class="rounded border border-border px-2 py-1 font-semibold text-foreground">
+                {{ message.metadata?.timings.predicted_per_second.toFixed(2) }} tokens/sec
+              </span>
+              <span class="rounded border border-border px-2 py-1">
+                First token {{ message.metadata?.timings.prompt_ms.toFixed(0) }}ms
+              </span>
+              <span
+                v-if="message.metadata?.mtp"
+                class="rounded border border-border px-2 py-1"
+                :class="message.metadata.mtp.enabled ? 'text-green-500' : 'text-muted-foreground'"
               >
-              <span class="mr-2">⋅</span>
-              <span class="mr-2"
-                >1st Token Time: {{ message.metadata?.timings.prompt_ms.toFixed(2) }}ms</span
-              >
+                MTP {{ message.metadata.mtp.enabled ? 'On' : 'Off' }}
+              </span>
             </div>
           </div>
         </div>
